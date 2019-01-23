@@ -12,7 +12,7 @@ SyslogIdentifier=rewarding
 StandardOutput=syslog
 StandardError=syslog
 Restart=always
-RestartSec=30
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target

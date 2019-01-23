@@ -23,6 +23,7 @@ tests_require = ['mock >= 2.0.0', 'pytest', 'pytest-mock', 'parameterized']
 requires = [
     "beem",
     "dataset",
+    "nltk"
 ]
 
 
@@ -50,7 +51,7 @@ if __name__ == '__main__':
     write_version_py('steemrewarding/version.py')
 
     setup(
-        name='rewarding',
+        name='steemrewarding',
         version=VERSION,
         description='steem rewarding library',
         long_description=get_long_description(),

@@ -28,10 +28,10 @@ log.addHandler(logging.StreamHandler())
 timeformat = "%Y%m%d-%H%M%S"
 
 
-class PostsTrx(object):
+class PendingVotesTrx(object):
     """ This is the trx storage class
     """
-    __tablename__ = 'posts'
+    __tablename__ = 'pending_votes'
 
     def __init__(self, db):
         self.db = db
@@ -52,7 +52,7 @@ class PostsTrx(object):
 
         """
         table = self.db[self.__tablename__]
-        table.upsert(data, ["authorperm"])
+        table.upsert(data, ["authorperm", "voter"])
         self.db.commit()
 
     def add_batch(self, data):
@@ -64,11 +64,11 @@ class PostsTrx(object):
         if isinstance(data, list):
             #table.insert_many(data, chunk_size=chunk_size)
             for d in data:
-                table.upsert(d, ["authorperm"])
+                table.upsert(d, ["authorperm", "voter"])
         else:
             self.db.begin()
             for d in data:
-                table.upsert(data[d], ["authorperm"])            
+                table.upsert(data[d], ["authorperm", "voter"])            
             
         self.db.commit()
 
@@ -80,99 +80,40 @@ class PostsTrx(object):
         self.db.begin()
         if isinstance(data, list):
             for d in data:
-                table.update(d, ["authorperm"])
+                table.update(d, ["authorperm", "voter"])
         else:
             for d in data:
-                table.update(data[d], ["authorperm"])            
+                table.update(data[d], ["authorperm", "voter"])            
         self.db.commit()
 
-    def update_processed(self, authorperm, processed):
-        """ Change share_age depending on timestamp
-
-        """
-        table = self.db[self.__tablename__]
-        data = dict(authorperm=authorperm, processed=processed)
-        table.update(data, ['authorperm'])
-
-    def get_latest_post(self):
+    def get_latest_command(self):
         table = self.db[self.__tablename__]
         ret = table.find_one(order_by='-created')
         if ret is None:
             return None
         return ret
 
-    def get_latest_block(self):
-        table = self.db[self.__tablename__]
-        ret = table.find_one(order_by='-created')
-        if ret is None:
-            return None
-        return ret["block"]
-
-    def get_author_posts(self, author):
+    def get_command_list(self):
         table = self.db[self.__tablename__]
         posts = []
-        for post in table.find(author=author, order_by='created'):
+        for post in table.find(order_by='created'):
             posts.append(post)
         return posts
 
-    def get_authorperm_posts(self, authorperm):
+    def get_command_list_vp_reached(self):
         table = self.db[self.__tablename__]
         posts = []
-        for post in table.find(authorperm=authorperm, order_by='created'):
+        for post in table.find(order_by='vp_reached_order'):
             posts.append(post)
         return posts
 
-    def get_posts(self):
-        table = self.db[self.__tablename__]
-        posts = {}
-        for post in table.find(order_by='created'):
-            posts[post["authorperm"]] = post
-        return posts
-
-    def get_post(self, authorperm):
-        table = self.db[self.__tablename__]
-        posts = None
-        for post in table.find(authorperm=authorperm):
-            posts = post
-        return posts
-
-    def get_posts_list(self, start_timestamp):
-        table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(table.table.columns.created >  start_timestamp, order_by='created'):
-            posts.append(post)
-        return posts
-
-    def get_authorperm(self):
-        table = self.db[self.__tablename__]
-        posts = {}
-        for post in table.find(order_by='created'):
-            posts[post["authorperm"]] = post["authorperm"]
-        return posts
-
-    def get_authorperm_list(self):
-        table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(order_by='created'):
-            posts.append(post["authorperm"])
-        return posts
-
-    def delete_old_posts(self, days):
-        table = self.db[self.__tablename__]
-        del_posts = []
-        for post in table.find(order_by='created'):
-            if (datetime.utcnow() - post["created"]).total_seconds() > 60 * 60 * 24 * days:
-                del_posts.append(post["authorperm"])
-        for post in del_posts:
-            table.delete(authorperm=post)
-
-    def delete(self, ID):
+    def delete(self, authorperm, voter):
         """ Delete a data set
 
            :param int ID: database id
         """
         table = self.db[self.__tablename__]
-        table.delete(id=ID)
+        table.delete(authorperm=authorperm, voter=voter)
 
     def wipe(self, sure=False):
         """Purge the entire database. No data set will survive this!"""
@@ -186,3 +127,5 @@ class PostsTrx(object):
         else:
             table = self.db[self.__tablename__]
             table.drop
+
+

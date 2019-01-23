@@ -44,3 +44,35 @@ def upvote_comment(c_comment, acc_vote_name, acc_vote_weight):
             print("retry to vote %s" % c_comment["authorperm"])
         cnt += 1
     return vote_sucessfull
+
+
+def tags_included(include_tags, tags):
+    tags_included = True
+    if include_tags is not None and include_tags != "":
+        tags_included = False
+        for tag in include_tags.split(","):
+            if tag.find("&") == -1:
+                if tag.lower().strip() in tags:
+                    tags_included = True
+            elif not tags_included:
+                tags_included = True
+                for t in tag.split("&"):
+                    if t.lower().strip() not in tags:
+                        tags_included = False
+    return tags_included
+
+
+def tags_excluded(exclude_tags, tags):
+    tags_excluded = True
+    if exclude_tags is not None and exclude_tags != "":
+        tags_excluded = True
+        for tag in exclude_tags.split(","):
+            if tag.find("&") == -1:
+                if tag.lower().strip() in tags:
+                    tags_excluded = False
+            elif tags_excluded:
+                tags_excluded = False
+                for t in tag.split("&"):
+                    if t.lower().strip() not in tags:
+                        tags_excluded = True           
+    return tags_excluded
