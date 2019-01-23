@@ -88,41 +88,39 @@ if __name__ == "__main__":
     stm.wallet.unlock(wallet_password)
     b = Blockchain(steem_instance = stm)
     
-    # print("reading all authorperm")
-    delete_vote_commands = []
-    for vote_command in pendingVotesTrx.get_command_list_timed():
-        # print(vote_command)
-        age_min = (datetime.utcnow() - vote_command["comment_timestamp"]).total_seconds() / 60
-        if age_min > vote_command["vote_delay_min"] + 3:
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+    delete_pending_votes = []
+    for pending_vote in pendingVotesTrx.get_command_list_timed():
+        age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
+        if age_min > pending_vote["vote_delay_min"] + 3:
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
 
-        if age_min > vote_command["vote_delay_min"] and vote_command["vote_weight"] > 0:
-            c = Comment(vote_command["authorperm"], steem_instance=stm)
+        if age_min > pending_vote["vote_delay_min"] and pending_vote["vote_weight"] > 0:
+            c = Comment(pending_vote["authorperm"], steem_instance=stm)
             if not valid_age(c):
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue                
             age_min = (addTzInfo(datetime.utcnow()) - c["created"]).total_seconds() / 60
-            if age_min < vote_command["vote_delay_min"]:
+            if age_min < pending_vote["vote_delay_min"]:
                 continue
-            if vote_command["max_net_votes"] > -1 and vote_command["max_net_votes"] < c["net_votes"]:
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            if pending_vote["max_net_votes"] > -1 and pending_vote["max_net_votes"] < c["net_votes"]:
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue
-            if vote_command["max_pending_payout"] > -1 and vote_command["max_pending_payout"] < float(c["pending_payout"]):
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            if pending_vote["max_pending_payout"] > -1 and pending_vote["max_pending_payout"] < float(c["pending_payout"]):
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue
             # check for max votes per day/week
-            votes_24h_before = voteLogTrx.get_votes_per_day(vote_command["voter"])
-            if vote_command["max_votes_per_day"] > -1 and vote_command["max_votes_per_day"] <= votes_24h_before:
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"])
+            if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] <= votes_24h_before:
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue
-            votes_168h_before = voteLogTrx.get_votes_per_week(vote_command["voter"])
-            if vote_command["max_votes_per_week"] > -1 and vote_command["max_votes_per_week"] <= votes_168h_before:
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"])
+            if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] <= votes_168h_before:
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue               
-            voter_acc = Account(vote_command["voter"], steem_instance=stm)
-            if voter_acc.vp < vote_command["min_vp"]:
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            voter_acc = Account(pending_vote["voter"], steem_instance=stm)
+            if voter_acc.vp < pending_vote["min_vp"]:
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue       
             posting_auth = False
             for a in voter_acc["posting"]["account_auths"]:
@@ -135,50 +133,52 @@ if __name__ == "__main__":
                     already_voted = True
             
             if not posting_auth or already_voted:
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue
             
+            vote_weight = pending_vote["vote_weight"]
+            if pending_vote["vp_scaler"] > 0:
+                vote_weight *= (100 - voter_acc.vp) * pending_vote["vp_scaler"]            
             
-            
-            sucess = upvote_comment(c, voter_acc["name"], vote_command["vote_weight"])
+            sucess = upvote_comment(c, voter_acc["name"], vote_weight)
 
             if sucess:
-                if vote_command["leave_comment"]:
+                if pending_vote["leave_comment"]:
                     print("leave comment")
-                voteLogTrx.add({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"], "author": c["author"],
-                                "timestamp": datetime.utcnow(), "vote_weight": vote_command["vote_weight"], "vote_delay_min": vote_command["vote_delay_min"],
-                                "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": vote_command["vote_when_vp_reached"]})
-                delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+                voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
+                                "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
                 continue
     
-    for vote_command in delete_vote_commands:
-        pendingVotesTrx.delete(vote_command["authorperm"], vote_command["voter"])
-    delete_vote_commands = []
+    for pending_vote in delete_pending_votes:
+        pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"])
+    delete_pending_votes = []
 
-    for vote_command in pendingVotesTrx.get_command_list_vp_reached():
-        if vote_command["vote_weight"] == 0:
+    for pending_vote in pendingVotesTrx.get_command_list_vp_reached():
+        if pending_vote["vote_weight"] == 0:
             continue
-        voter_acc = Account(vote_command["voter"], steem_instance=stm)
-        age_min = (datetime.utcnow() - vote_command["comment_timestamp"]).total_seconds() / 60
-        if voter_acc.vp < vote_command["min_vp"]:
+        voter_acc = Account(pending_vote["voter"], steem_instance=stm)
+        age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
+        if voter_acc.vp < pending_vote["min_vp"]:
             continue
-        c = Comment(vote_command["authorperm"], steem_instance=stm)
+        c = Comment(pending_vote["authorperm"], steem_instance=stm)
         if not valid_age(c):
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
-        if vote_command["max_net_votes"] > -1 and vote_command["max_net_votes"] < c["net_votes"]:
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+        if pending_vote["max_net_votes"] > -1 and pending_vote["max_net_votes"] < c["net_votes"]:
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
-        if vote_command["max_pending_payout"] > -1 and vote_command["max_pending_payout"] < float(c["pending_payout"]):
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+        if pending_vote["max_pending_payout"] > -1 and pending_vote["max_pending_payout"] < float(c["pending_payout"]):
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
-        votes_24h_before = voteLogTrx.get_votes_per_day(vote_command["voter"])
-        if vote_command["max_votes_per_day"] > -1 and vote_command["max_votes_per_day"] <= votes_24h_before:
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+        votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"])
+        if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] <= votes_24h_before:
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
-        votes_168h_before = voteLogTrx.get_votes_per_week(vote_command["voter"])
-        if vote_command["max_votes_per_week"] > -1 and vote_command["max_votes_per_week"] <= votes_168h_before:
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+        votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"])
+        if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] <= votes_168h_before:
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue        
         posting_auth = False
         for a in voter_acc["posting"]["account_auths"]:
@@ -191,20 +191,23 @@ if __name__ == "__main__":
                 already_voted = True        
                 
         if not posting_auth or already_voted:
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
-        sucess = upvote_comment(c, voter_acc["name"], vote_command["vote_weight_vp_full"])
+        vote_weight = pending_vote["vote_weight"]
+        if pending_vote["vp_scaler"] > 0:
+            vote_weight *= (100 - voter_acc.vp) * pending_vote["vp_scaler"]
+        sucess = upvote_comment(c, voter_acc["name"], vote_weight)
         if sucess:
-            if vote_command["leave_comment"]:
+            if pending_vote["leave_comment"]:
                 print("leave comment")
             # add vote to log
-            voteLogTrx.add({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"], "author": c["author"],
-                            "timestamp": datetime.utcnow(), "vote_weight": vote_command["vote_weight"], "vote_delay_min": vote_command["vote_delay_min"],
-                            "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": vote_command["vote_when_vp_reached"]})            
-            delete_vote_commands.append({"authorperm": vote_command["authorperm"], "voter": vote_command["voter"]})
+            voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
+                            "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                            "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
         continue                        
     
-    for vote_command in delete_vote_commands:
-        pendingVotesTrx.delete(vote_command["authorperm"], vote_command["voter"])
-    delete_vote_commands = []
+    for pending_vote in delete_pending_votes:
+        pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"])
+    delete_pending_votes = []
     print("upvote posts script run %.2f s" % (time.time() - start_prep_time))
