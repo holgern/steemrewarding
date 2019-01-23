@@ -1,5 +1,13 @@
 -- Adminer 4.7.0 PostgreSQL dump
 
+DROP TABLE IF EXISTS "accounts";
+CREATE TABLE "public"."accounts" (
+    "name" character varying(16) NOT NULL,
+    "upvote_comment" character varying(2048) NOT NULL,
+    CONSTRAINT "accounts_name" PRIMARY KEY ("name")
+) WITH (oids = false);
+
+
 DROP TABLE IF EXISTS "commands";
 CREATE TABLE "public"."commands" (
     "authorperm" character varying(300) NOT NULL,
@@ -44,10 +52,12 @@ CREATE TABLE "public"."pending_votes" (
     "max_votes_per_week" smallint NOT NULL,
     "vp_scaler" real NOT NULL,
     "leave_comment" boolean NOT NULL,
-    CONSTRAINT "pending_votes_authorperm_voter" PRIMARY KEY ("authorperm", "voter")
+    CONSTRAINT "pending_votes_authorperm_voter_vote_when_vp_reached" PRIMARY KEY ("authorperm", "voter", "vote_when_vp_reached")
 ) WITH (oids = false);
 
 CREATE INDEX "ix_pending_votes_75a831de789ee9f6" ON "public"."pending_votes" USING btree ("authorperm", "voter");
+
+CREATE INDEX "pending_votes_vote_when_vp_reached" ON "public"."pending_votes" USING btree ("vote_when_vp_reached");
 
 
 DROP TABLE IF EXISTS "posts";
@@ -69,6 +79,23 @@ CREATE TABLE "public"."posts" (
 ) WITH (oids = false);
 
 CREATE INDEX "ix_posts_567819135781dcea" ON "public"."posts" USING btree ("authorperm");
+
+
+DROP TABLE IF EXISTS "vote_log";
+CREATE TABLE "public"."vote_log" (
+    "authorperm" character varying(300) NOT NULL,
+    "author" character varying(16) NOT NULL,
+    "voter" character varying(16) NOT NULL,
+    "timestamp" timestamp NOT NULL,
+    "vote_weight" real NOT NULL,
+    "vote_delay_min" real NOT NULL,
+    "voted_after_min" real NOT NULL,
+    "vp" real NOT NULL,
+    "vote_when_vp_reached" boolean NOT NULL,
+    CONSTRAINT "vote_log_authorperm_voter" PRIMARY KEY ("authorperm", "voter")
+) WITH (oids = false);
+
+CREATE INDEX "ix_vote_log_75a831de789ee9f6" ON "public"."vote_log" USING btree ("authorperm", "voter");
 
 
 DROP TABLE IF EXISTS "vote_rules";
@@ -95,6 +122,8 @@ CREATE TABLE "public"."vote_rules" (
     "vp_reached_order" smallint DEFAULT '1' NOT NULL,
     "max_net_votes" integer DEFAULT '-1' NOT NULL,
     "max_pending_payout" real DEFAULT '-1' NOT NULL,
+    "include_text" character varying(256),
+    "exclude_text" character varying(256),
     CONSTRAINT "vote_rules_voter_author_main_post" PRIMARY KEY ("voter", "author", "main_post")
 ) WITH (oids = false);
 
@@ -112,5 +141,4 @@ CREATE TABLE "public"."votes" (
 ) WITH (oids = false);
 
 
--- 2019-01-23 14:50:06.76627+01
-
+-- 2019-01-23 17:15:28.846529+01

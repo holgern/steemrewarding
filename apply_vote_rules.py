@@ -135,7 +135,13 @@ if __name__ == "__main__":
                     if app.lower().strip() in post["app"].split("/")[0]:
                         apps_excluded = False
                 if not apps_excluded:
-                    continue            
+                    continue
+            if rule["include_text"] is not None and rule["include_text"] != "":
+                if c.body.find(rule["include_text"]) == -1:
+                    continue
+            if rule["exclude_text"] is not None and rule["exclude_text"] != "":
+                if c.body.find(rule["exclude_text"]) > -1:
+                    continue
         
             if rule["enabled"]:
                 pending_vote = {"authorperm": authorperm, "voter": rule["voter"], "vote_weight": rule["vote_weight"], "comment_timestamp": c["created"].replace(tzinfo=None),
