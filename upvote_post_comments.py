@@ -138,7 +138,7 @@ if __name__ == "__main__":
             
             vote_weight = pending_vote["vote_weight"]
             if pending_vote["vp_scaler"] > 0:
-                vote_weight *= (100 - voter_acc.vp) * pending_vote["vp_scaler"]            
+                vote_weight *= 1 - ((100 - voter_acc.vp) / 100 * pending_vote["vp_scaler"])
             
             sucess = upvote_comment(c, voter_acc["name"], vote_weight)
 
@@ -195,7 +195,7 @@ if __name__ == "__main__":
             continue
         vote_weight = pending_vote["vote_weight"]
         if pending_vote["vp_scaler"] > 0:
-            vote_weight *= (100 - voter_acc.vp) * pending_vote["vp_scaler"]
+            vote_weight *= 1 - ((100 - voter_acc.vp) / 100 * pending_vote["vp_scaler"])
         sucess = upvote_comment(c, voter_acc["name"], vote_weight)
         if sucess:
             if pending_vote["leave_comment"]:
