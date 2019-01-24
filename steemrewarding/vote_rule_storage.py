@@ -54,6 +54,14 @@ class VoteRulesTrx(object):
         table = self.db[self.__tablename__]
         table.upsert(data, ["voter", "author", "main_post"])
         self.db.commit()
+ 
+    def update(self, data):
+        """ Add a new data set
+
+        """
+        table = self.db[self.__tablename__]
+        table.update(data, ["voter", "author", "main_post"])
+        self.db.commit()
 
     def add_batch(self, data):
         """ Add a new data set
@@ -116,17 +124,17 @@ class VoteRulesTrx(object):
     def get_posts(self, voter):
         table = self.db[self.__tablename__]
         data = [] 
-        for v in table.find(voter=voter, main_post=True):
+        for v in table.find(voter=voter):
             data.append(v)
         return data
 
-    def delete(self, ID):
+    def delete(self, voter, author, main_post):
         """ Delete a data set
 
            :param int ID: database id
         """
         table = self.db[self.__tablename__]
-        table.delete(id=ID)
+        table.delete(voter=voter, author=author, main_post=main_post)
 
     def wipe(self, sure=False):
         """Purge the entire database. No data set will survive this!"""

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta http-equiv="Content-Language" content="en" />
+    <meta name="msapplication-TileColor" content="#2d89ef">
+    <meta name="theme-color" content="#4188c9">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="MobileOptimized" content="320">
+    <!-- <link rel="icon" href={{ url_for('static', filename='images/beempy.ico') }} type="image/x-icon"/>-->
+    <link rel="shortcut icon" type="image/x-icon" href={{ url_for('static', filename='images/beempy.ico') }} />
+    <!-- Generated: 2018-04-16 09:29:05 +0200 -->
+    <title>beempy.com - project by @holger80</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,300i,400,400i,500,500i,600,600i,700,700i&amp;subset=latin-ext">
+    <script src= {{ url_for('static', filename='js/require.min.js') }}></script>
+    <script>
+      requirejs.config({
+          baseUrl: '.'
+      });
+    </script>
+   <!-- <link href={{ url_for('static', filename='css/dashboard.css') }} rel="stylesheet" />
+    <script src={{ url_for('static', filename='js/dashboard.js') }}></script>-->
+    </head>
+    
+      <body class="">
+    <div class="page">
+      <div class="page-main">
+        <div id="headerMenuCollapse">
+          <div class="container">
+            <div class="row align-items-center">
+              <div class="col-lg order-lg-first">
+                <ul class="nav nav-tabs border-0 flex-column flex-lg-row">
+                  <li class="nav-item">
+                    <a href="/" class="nav-link active"><i class="fe fe-home"></i> Home</a>
+                  </li>
+                   <li class="nav-item">
+                    <a href="/show_rules" class="nav-link active"> Show rules</a>
+                  </li>
+                    <li class="nav-item">
+                    <a href="/new_rule" class="nav-link active"> Add a new rule</a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/show_vote_log" class="nav-link active"> Show vote Log</a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/logout" class="nav-link active">Logout</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% block content %}{% endblock %}
+                </div>
+      </div>
+      <div class="footer">
+        <div class="container">
+          <div class="row">
+            <div class="col-lg-8">
+              <div class="row">
+                    A project by @holger80 - If you like what I'm doing, please consider @holger80 as one of your witnesses (<a href="https://steemconnect.com/sign/account-witness-vote?witness=holger80&approve=1">steemconnect</a>).
+
+             </div>
+          </div>
+        </div>
+      </div>
+     </div>
+  </body>
+</html>
