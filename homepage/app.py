@@ -48,9 +48,10 @@ from beem.conveyor import Conveyor
 from beem.rc import RC
 from beem.constants import STEEM_VOTE_REGENERATION_SECONDS, STEEM_100_PERCENT, STEEM_1_PERCENT, STEEM_RC_REGEN_TIME
 from beem.constants import state_object_size_info, resource_execution_time
-from wtforms import Form, StringField, SelectField, validators, BooleanField, FloatField, IntegerField
+from wtforms import Form, StringField, SelectField, validators, BooleanField, FloatField, IntegerField, TextAreaField
 from steemrewarding.vote_rule_storage import VoteRulesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
+from steemrewarding.pending_vote_storage import PendingVotesTrx
 DEBUG = True
 DEBUG = False
 
@@ -118,7 +119,6 @@ class Results(Table):
 
 
 class VotesLog(Table):
-    voter = Col('voter')
     authorperm = Col('authorperm')
     author = Col('author')
     timestamp = Col('timestamp')
@@ -133,8 +133,8 @@ class RuleForm(FlaskForm):
     author = StringField('author')
     main_post = BooleanField('main_post', default=True)
     vote_delay_min = FloatField('vote_delay_min', default=15.0)
-    include_tags = StringField('include_tags')
-    exclude_tags = StringField('exclude_tags')
+    include_tags = TextAreaField('include_tags')
+    exclude_tags = TextAreaField('exclude_tags')
     
     vote_weight = FloatField('vote_weight', default=100.0)
     enabled = BooleanField('enabled', default=True)
@@ -146,15 +146,32 @@ class RuleForm(FlaskForm):
     vp_scaler = FloatField('vp_scaler', default=0.0)
     leave_comment = BooleanField('leave_comment')
     minimum_word_count = IntegerField('minimum_word_count', default=0)
-    include_apps = StringField('include_apps')
-    exclude_apps = StringField('exclude_apps')
+    include_apps = TextAreaField('include_apps')
+    exclude_apps = TextAreaField('exclude_apps')
     exclude_declined_payout = BooleanField('exclude_declined_payout', default=True)
     vp_reached_order = IntegerField('vp_reached_order', default=1)
     max_net_votes = IntegerField('max_net_votes', default=-1)
     max_pending_payout = FloatField('max_pending_payout', default=-1.0)
     
-    include_text = StringField('include_text')
-    exclude_text = StringField('exclude_text')
+    include_text = TextAreaField('include_text')
+    exclude_text = TextAreaField('exclude_text')
+
+
+class PendingVotes(Table):
+    authorperm = Col('authorperm')
+    vote_weight = Col('vote weight')
+    comment_timestamp = Col('comment timestamp')
+    vote_delay_min = Col('vote delay min')
+    created = Col('created')
+    min_vp = Col('min vp')
+    vote_when_vp_reached = Col('vote when vp reached')
+    vp_reached_order = Col('vp reached order')
+    max_net_votes = Col('max net votes')
+    max_pending_payout = Col('max pending payout')
+    max_votes_per_day = Col('max votes per day')
+    max_votes_per_week = Col('max votes per week')
+    vp_scaler = Col('vp scaler')
+    leave_comment = Col('leave comment')
 
 
 def set_form(form, rule):
@@ -321,6 +338,37 @@ def show_vote_log():
     table = VotesLog(logs)
     table.border = True
     return render_template('votes_log.html', table=table, user=name)
+
+
+@app.route('/show_pending_votes', methods=['GET'])
+def show_pending_votes():
+    access_token = request.args.get("access_token", None)
+    if access_token is None and 'access_token' not in session:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url        
+    elif access_token is None:
+        access_token = session['access_token']
+    else:
+        session['access_token'] = access_token
+    try:
+      
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+    # return name
+    db = dataset.connect(databaseConnector)
+    pendingVotesTrx = PendingVotesTrx(db)
+    votes = pendingVotesTrx.get_votes(name)
+    table = PendingVotes(votes)
+    table.border = True
+    return render_template('pending_votes.html', table=table, user=name)
+
 
 @app.route('/new_rule', methods=['GET', 'POST'])
 def new_rule():

@@ -93,6 +93,13 @@ class PendingVotesTrx(object):
             return None
         return ret
 
+    def get_votes(self, voter):
+        table = self.db[self.__tablename__]
+        votes = []
+        for vote in table.find(voter=voter, order_by='-created'):
+            votes.append(vote)
+        return votes
+
     def get_command_list_timed(self):
         table = self.db[self.__tablename__]
         posts = []

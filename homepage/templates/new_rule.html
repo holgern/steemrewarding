@@ -14,12 +14,17 @@
 <form method=post>
     <dl>
         {{ render_field(form.author) }}
-        {{ render_field(form.main_post) }}
+            <dt>{{ form.main_post.label }}
+    <dd>{{ form.main_post(checked=form.main_post)|safe }}
+    </dd>
+        
         {{ render_field(form.vote_delay_min) }}
         {{ render_field(form.include_tags) }}
         {{ render_field(form.exclude_tags) }}
         {{ render_field(form.vote_weight) }}
-        {{ render_field(form.enabled) }}
+                    <dt>{{ form.enabled.label }}
+    <dd>{{ form.enabled(checked=form.enabled)|safe }}
+    </dd>
         {{ render_field(form.vote_sbd) }}
         {{ render_field(form.max_votes_per_day) }}
         {{ render_field(form.max_votes_per_week) }}
@@ -30,7 +35,9 @@
         {{ render_field(form.minimum_word_count) }}
         {{ render_field(form.include_apps) }}
         {{ render_field(form.exclude_apps) }}
-        {{ render_field(form.exclude_declined_payout) }}
+        <dt>{{ form.exclude_declined_payout.label }}
+    <dd>{{ form.exclude_declined_payout(checked=form.exclude_declined_payout)|safe }}
+    </dd>
         {{ render_field(form.vp_reached_order) }}
         {{ render_field(form.max_net_votes) }}
         {{ render_field(form.max_pending_payout) }}
