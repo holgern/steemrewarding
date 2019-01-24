@@ -90,13 +90,13 @@ def valid_age(post, hours=156):
 class Results(Table):
     voter = Col('voter')
     author = Col('author')
-    main_post = Col('main_post')
+    main_post = Col('main post')
     vote_delay_min = Col('Vote delay min')
     include_tags = Col('include tags')
     exclude_tags = Col('exclude tags')
-    vote_weight = Col('vote_weight')
+    vote_weight = Col('vote weight')
     enabled = Col('enabled')
-    vote_sbd = Col('vote_sbd')
+    vote_sbd = Col('vote sbd')
     max_votes_per_day = Col('max votes per day')
     max_votes_per_week = Col('max votes per week')
     vote_when_vp_reached = Col('vote when vp reached')
@@ -291,7 +291,7 @@ def show_rules():
     rules = voteRulesTrx.get_posts(name)
     table = Results(rules)
     table.border = True
-    return render_template('show_rules.html', table=table)    
+    return render_template('show_rules.html', table=table, user=name)    
 
 @app.route('/show_vote_log', methods=['GET'])
 def show_vote_log():
@@ -320,7 +320,7 @@ def show_vote_log():
     logs = voteLogTrx.get_votes(name)
     table = VotesLog(logs)
     table.border = True
-    return render_template('votes_log.html', table=table)
+    return render_template('votes_log.html', table=table, user=name)
 
 @app.route('/new_rule', methods=['GET', 'POST'])
 def new_rule():
@@ -352,7 +352,7 @@ def new_rule():
         flash('Rule created successfully!')
         return redirect('/show_rules')
 
-    return render_template('new_rule.html', form=form)
+    return render_template('new_rule.html', form=form, user=name)
 
 @app.route('/edit_rule', methods=['GET', 'POST'])
 def edit_rule():
@@ -379,7 +379,7 @@ def edit_rule():
             return redirect('/show_rules')
         else:
             form = set_form(form, rule)
-        return render_template('edit_rule.html', form=form)
+        return render_template('edit_rule.html', form=form, user=name)
 
 @app.route('/delete_rule', methods=['GET', 'POST'])
 def delete_rule():
@@ -405,7 +405,7 @@ def delete_rule():
             return redirect('/show_rules')
         else:
             form = set_form(form, rule)
-        return render_template('delete_rule.html', form=form)
+        return render_template('delete_rule.html', form=form, user=name)
 
 
 if __name__ == '__main__':

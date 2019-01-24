@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+
+                    <h3 class="card-title text-center">Edit vote rule for {{ user }} </h3>
+                  <div class="table-responsive">
+
 {% from "_formhelpers.html" import render_field %}
 <form method=post>
     <dl>
@@ -30,4 +38,8 @@
     </dl>
     <p><input type=submit value=Submit>
 </form>
+
+            </div>
+          </div>
+          </div>
 {% endblock %}
