@@ -52,6 +52,7 @@ from wtforms import Form, StringField, SelectField, validators, BooleanField, Fl
 from steemrewarding.vote_rule_storage import VoteRulesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.pending_vote_storage import PendingVotesTrx
+from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
 DEBUG = True
 DEBUG = False
 
@@ -128,16 +129,35 @@ class VotesLog(Table):
     vp = Col('vp')
     vote_when_vp_reached = Col('vote when vp reached')
 
+
+class FailedVotesLog(Table):
+    authorperm = Col('authorperm')
+    error = Col("error")
+    timestamp = Col('timestamp')
+    vote_weight = Col('vote weight')
+    vote_delay_min = Col('vote delay min')
+    vp_min = Col('vp min')
+    vp = Col('vp')
+    vote_when_vp_reached = Col('vote when vp reached')
+
+
+class VoteForm(FlaskForm):
+
+    authorperm = TextAreaField('authorperm')
+    vote_delay_min = FloatField('vote_delay_min', default=15.0)
+    vote_weight = FloatField('vote_weight', default=100.0)
+
 class RuleForm(FlaskForm):
 
     author = StringField('author')
     main_post = BooleanField('main_post', default=True)
     vote_delay_min = FloatField('vote_delay_min', default=15.0)
+    vote_weight = FloatField('vote_weight', default=100.0)
+    enabled = BooleanField('enabled', default=True)
+    
     include_tags = TextAreaField('include_tags')
     exclude_tags = TextAreaField('exclude_tags')
     
-    vote_weight = FloatField('vote_weight', default=100.0)
-    enabled = BooleanField('enabled', default=True)
     vote_sbd = FloatField('vote_sbd', default=0.0)
     max_votes_per_day = IntegerField('max_votes_per_day', default=-1)
     max_votes_per_week = IntegerField('max_votes_per_week', default=-1)
@@ -217,6 +237,14 @@ def rule_dict_from_form(voter, form):
 
     return rule
 
+def vote_dict_from_form(voter, form):
+    """
+    Save the changes to the database
+    """
+
+    vote = {"voter": voter, "authorperm": form.authorperm.data, "vote_delay_min": form.vote_delay_min.data, 
+            "vote_weight": form.vote_weight.data}
+    return vote
 
 @app.route('/')
 def main():
@@ -225,7 +253,7 @@ def main():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url        
+        return render_template('please_login.html', login_url=login_url)
     elif access_token is None:
         access_token = session['access_token']
     else:
@@ -238,7 +266,7 @@ def main():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
     # return name
 
     return render_template('welcome.html', user=name)
@@ -252,7 +280,7 @@ def logout():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Logout successfull! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
 
     return render_template('welcome.html', user=name)
 
@@ -263,7 +291,7 @@ def welcome():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url        
+        return render_template('please_login.html', login_url=login_url)     
     elif access_token is None:
         access_token = session['access_token']
     else:
@@ -276,7 +304,7 @@ def welcome():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
     # return name
 
     return render_template('welcome.html', user=name)
@@ -288,7 +316,7 @@ def show_rules():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url        
+        return render_template('please_login.html', login_url=login_url)     
     elif access_token is None:
         access_token = session['access_token']
     else:
@@ -301,7 +329,7 @@ def show_rules():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
     # return name
     db = dataset.connect(databaseConnector)
     voteRulesTrx = VoteRulesTrx(db)
@@ -317,7 +345,7 @@ def show_vote_log():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url        
+        return render_template('please_login.html', login_url=login_url)     
     elif access_token is None:
         access_token = session['access_token']
     else:
@@ -330,7 +358,7 @@ def show_vote_log():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
     # return name
     db = dataset.connect(databaseConnector)
     voteLogTrx = VoteLogTrx(db)
@@ -340,14 +368,14 @@ def show_vote_log():
     return render_template('votes_log.html', table=table, user=name)
 
 
-@app.route('/show_pending_votes', methods=['GET'])
-def show_pending_votes():
+@app.route('/show_failed_vote_log', methods=['GET'])
+def show_failed_vote_log():
     access_token = request.args.get("access_token", None)
     if access_token is None and 'access_token' not in session:
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url        
+        return render_template('please_login.html', login_url=login_url)     
     elif access_token is None:
         access_token = session['access_token']
     else:
@@ -360,7 +388,36 @@ def show_pending_votes():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
+    # return name
+    db = dataset.connect(databaseConnector)
+    failedVoteLogTrx = FailedVoteLogTrx(db)
+    logs = failedVoteLogTrx.get_votes(name)
+    table = FailedVotesLog(logs)
+    table.border = True
+    return render_template('failed_votes_log.html', table=table, user=name)
+
+@app.route('/show_pending_votes', methods=['GET'])
+def show_pending_votes():
+    access_token = request.args.get("access_token", None)
+    if access_token is None and 'access_token' not in session:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)     
+    elif access_token is None:
+        access_token = session['access_token']
+    else:
+        session['access_token'] = access_token
+    try:
+      
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)
     # return name
     db = dataset.connect(databaseConnector)
     pendingVotesTrx = PendingVotesTrx(db)
@@ -368,6 +425,88 @@ def show_pending_votes():
     table = PendingVotes(votes)
     table.border = True
     return render_template('pending_votes.html', table=table, user=name)
+
+@app.route('/<community>/<author>/<permlink>', methods=['GET', 'POST'])
+def delayed_vote_link(community, author, permlink):
+    authorperm = author + '/' +permlink
+    access_token = request.args.get("access_token", None)
+ 
+    # access_token = session['access_token']
+    try:
+        if access_token is None:
+            access_token = session['access_token']           
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)  
+    form = VoteForm(request.form)
+
+    if request.method == 'POST': # and form.validate():
+        # save the rule
+        db = dataset.connect(databaseConnector)
+        pendingVotesTrx = PendingVotesTrx(db)
+        vote_dict = vote_dict_from_form(name, form)
+        vote_dict["created"] = datetime.utcnow()
+        try:
+            authorperm = vote_dict["authorperm"]
+            if authorperm.find("@") > 1:
+                authorperm = authorperm[authorperm.find("@"):]
+            c = Comment(authorperm, steem_instance=stm)
+        except:
+            return "Wrong authoerperm!"        
+        vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
+        pendingVotesTrx.add(vote_dict)
+        flash('Rule created successfully!')
+        return redirect('/show_pending_votes')
+    else:
+        form.authorperm.data = authorperm
+
+    return render_template('delayed_vote.html', form=form, user=name)        
+
+@app.route('/delayed_vote', methods=['GET', 'POST'])
+def delayed_vote():
+    """
+    Add a new rule
+    """
+    
+    access_token = request.args.get("access_token", None)
+ 
+    # access_token = session['access_token']
+    try:
+        if access_token is None:
+            access_token = session['access_token']           
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)  
+    form = VoteForm(request.form)
+
+    if request.method == 'POST': # and form.validate():
+        # save the rule
+        db = dataset.connect(databaseConnector)
+        pendingVotesTrx = PendingVotesTrx(db)
+        vote_dict = vote_dict_from_form(name, form)
+        vote_dict["created"] = datetime.utcnow()
+        try:
+            authorperm = vote_dict["authorperm"]
+            if authorperm.find("@") > 1:
+                authorperm = authorperm[authorperm.find("@"):]
+            c = Comment(authorperm, steem_instance=stm)
+        except:
+            return "Wrong authorperm!"
+        
+        vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
+        pendingVotesTrx.add(vote_dict)
+        flash('Rule created successfully!')
+        return redirect('/show_pending_votes')
+
+    return render_template('delayed_vote.html', form=form, user=name)
 
 
 @app.route('/new_rule', methods=['GET', 'POST'])
@@ -388,7 +527,7 @@ def new_rule():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url    
+        return render_template('please_login.html', login_url=login_url)  
     form = RuleForm(request.form)
 
     if request.method == 'POST': # and form.validate():
@@ -415,7 +554,7 @@ def edit_rule():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
     db = dataset.connect(databaseConnector)
     voteRulesTrx = VoteRulesTrx(db)    
     rule = voteRulesTrx.get(name, author, main_post)
@@ -442,7 +581,7 @@ def delete_rule():
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
-        return "Please login! <a href='%s'>Login with SteemConnect</a>" % login_url
+        return render_template('please_login.html', login_url=login_url)
     db = dataset.connect(databaseConnector)
     voteRulesTrx = VoteRulesTrx(db)    
     rule = voteRulesTrx.get(name, author, main_post)

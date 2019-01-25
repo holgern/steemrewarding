@@ -7,17 +7,15 @@
  
               <div class="col-lg order-lg-first">
                 <ul class="nav nav-tabs border-0 flex-column flex-lg-row">
-                   <li class="nav-item">
-                    <a href="/show_vote_log" class="nav-link active"></i> Votes log</a>
+                  <li class="nav-item">
+                    <a href="/show_vote_log"></i> Votes log</a>
                   </li>
                   <li class="nav-item">
-                    <a href="/show_failed_vote_log"></i> Failed votes log</a>
+                    <a href="/show_failed_vote_log" class="nav-link active"></i> Failed votes log</a>
                   </li>
                 </ul>
               </div>
- 
-
-                    <h3 class="card-title text-center">Vote log for {{ user }} </h3>
+                    <h3 class="card-title text-center">Failed Vote log for {{ user }} </h3>
                   <div class="table-responsive">
  
 {{ table }}

@@ -13,7 +13,7 @@ import os
 import json
 import sqlite3
 from appdirs import user_data_dir
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from beem.utils import formatTimeString, addTzInfo
 import logging
 from binascii import hexlify
@@ -28,10 +28,10 @@ log.addHandler(logging.StreamHandler())
 timeformat = "%Y%m%d-%H%M%S"
 
 
-class PendingVotesTrx(object):
+class FailedVoteLogTrx(object):
     """ This is the trx storage class
     """
-    __tablename__ = 'pending_votes'
+    __tablename__ = 'failed_vote_log'
 
     def __init__(self, db):
         self.db = db
@@ -86,41 +86,43 @@ class PendingVotesTrx(object):
                 table.update(data[d], ["authorperm", "voter"])            
         self.db.commit()
 
-    def get_latest_command(self):
+    def get(self, authorperm, voter):
         table = self.db[self.__tablename__]
-        ret = table.find_one(order_by='-created')
-        if ret is None:
-            return None
-        return ret
+        return table.find_one(authorperm=authorperm, voter=voter)
 
-    def get_votes(self, voter):
+    def get_votes(self, voter, hours=168):
         table = self.db[self.__tablename__]
+        # today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        date_before = datetime.utcnow() - timedelta(hours=hours)
         votes = []
-        for vote in table.find(voter=voter, order_by='-created'):
-            votes.append(vote)
+        for v in table.find(table.table.columns.timestamp > date_before, voter=voter, order_by='-timestamp'):
+            votes.append(v)
         return votes
 
-    def get_command_list_timed(self):
+    def get_votes_per_day(self, voter):
         table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(vote_when_vp_reached=False, order_by='created'):
-            posts.append(post)
-        return posts
+        # today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        date_24h_before = datetime.utcnow() - timedelta(hours=24)
+        votes = 0
+        for v in table.find(table.table.columns.timestamp > date_24h_before, voter=voter):
+            votes += 1
+        return votes
 
-    def get_command_list_vp_reached(self):
+    def get_votes_per_week(self, voter):
         table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(vote_when_vp_reached=True, order_by=['vp_reached_order', '-created']):
-            posts.append(post)
-        return posts
+        date_168h_before = datetime.utcnow() - timedelta(hours=168)
+        votes = 0
+        for v in table.find(table.table.columns.timestamp > date_168h_before, voter=voter):
+            votes += 1
+        return votes
 
-    def delete(self, authorperm, voter):
+    def delete(self, ID):
         """ Delete a data set
 
            :param int ID: database id
         """
         table = self.db[self.__tablename__]
-        table.delete(authorperm=authorperm, voter=voter)
+        table.delete(id=ID)
 
     def wipe(self, sure=False):
         """Purge the entire database. No data set will survive this!"""
@@ -134,5 +136,3 @@ class PendingVotesTrx(object):
         else:
             table = self.db[self.__tablename__]
             table.drop
-
-

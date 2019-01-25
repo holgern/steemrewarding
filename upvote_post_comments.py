@@ -22,6 +22,7 @@ from steemrewarding.pending_vote_storage import PendingVotesTrx
 from steemrewarding.config_storage import ConfigurationDB
 from steemrewarding.vote_storage import VotesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
+from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
 from steemrewarding.utils import isfloat, upvote_comment, valid_age
 from steemrewarding.version import version as rewardingversion
 import dataset
@@ -50,6 +51,7 @@ if __name__ == "__main__":
     confStorage = ConfigurationDB(db)
     pendingVotesTrx = PendingVotesTrx(db)
     voteLogTrx = VoteLogTrx(db)
+    failedVoteLogTrx = FailedVoteLogTrx(db)
 
     conf_setup = confStorage.get()
     # last_post_block = conf_setup["last_post_block"]
@@ -90,94 +92,152 @@ if __name__ == "__main__":
     
     delete_pending_votes = []
     for pending_vote in pendingVotesTrx.get_command_list_timed():
+        if pending_vote["vote_weight"] == 0:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "vote_weight was set to zero.",
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})            
+            continue        
         age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
         if age_min > pending_vote["vote_delay_min"] + 3:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than %.2 min." % pending_vote["vote_delay_min"] + 3,
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})              
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
 
-        if age_min > pending_vote["vote_delay_min"] and pending_vote["vote_weight"] > 0:
-            c = Comment(pending_vote["authorperm"], steem_instance=stm)
-            if not valid_age(c):
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue                
-            age_min = (addTzInfo(datetime.utcnow()) - c["created"]).total_seconds() / 60
-            if age_min < pending_vote["vote_delay_min"]:
-                continue
-            if pending_vote["max_net_votes"] > -1 and pending_vote["max_net_votes"] < c["net_votes"]:
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue
-            if pending_vote["max_pending_payout"] > -1 and pending_vote["max_pending_payout"] < float(c["pending_payout"]):
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue
-            # check for max votes per day/week
-            votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"])
-            if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] <= votes_24h_before:
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue
-            votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"])
-            if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] <= votes_168h_before:
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue               
-            voter_acc = Account(pending_vote["voter"], steem_instance=stm)
-            if voter_acc.vp < pending_vote["min_vp"]:
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue       
-            posting_auth = False
-            for a in voter_acc["posting"]["account_auths"]:
-                if a[0] == "rewarding":
-                    posting_auth = True
+        if age_min < pending_vote["vote_delay_min"]:
+            continue
 
-            already_voted = False
-            for v in c["active_votes"]:
-                if voter_acc["name"] == v["voter"]:
-                    already_voted = True
-            
-            if not posting_auth or already_voted:
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue
-            
-            vote_weight = pending_vote["vote_weight"]
-            if pending_vote["vp_scaler"] > 0:
-                vote_weight *= 1 - ((100 - voter_acc.vp) / 100 * pending_vote["vp_scaler"])
-            
-            sucess = upvote_comment(c, voter_acc["name"], vote_weight)
+        c = Comment(pending_vote["authorperm"], steem_instance=stm)
+        if not valid_age(c):
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than 6.5 days.",
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue                
+        age_min = (addTzInfo(datetime.utcnow()) - c["created"]).total_seconds() / 60
+        if age_min < pending_vote["vote_delay_min"]:
+            continue
+        if pending_vote["max_net_votes"] > -1 and pending_vote["max_net_votes"] < c["net_votes"]:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The number of post/comment votes (%d) is higher than max_net_votes (%d)." % (c["net_votes"], pending_vote["max_net_votes"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue
+        if pending_vote["max_pending_payout"] > -1 and pending_vote["max_pending_payout"] < float(c["pending_payout"]):
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The pending payout of post/comment votes (%.2f) is higher than max_pending_payout (%.2f)." % (float(c["pending_payout"]), pending_vote["max_pending_payout"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                    
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue
+        # check for max votes per day/week
+        votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"])
+        if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] <= votes_24h_before:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue
+        votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"])
+        if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] <= votes_168h_before:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue               
+        voter_acc = Account(pending_vote["voter"], steem_instance=stm)
+        if voter_acc.vp < pending_vote["min_vp"]:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Voting power is %.2 %%, which is to low. (min_vp is %.2f %%)" % (voter_acc.vp, pending_vote["min_vp"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue       
+        posting_auth = False
+        for a in voter_acc["posting"]["account_auths"]:
+            if a[0] == "rewarding":
+                posting_auth = True
 
-            if sucess:
-                if pending_vote["leave_comment"]:
-                    print("leave comment")
-                voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
-                                "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
-                                "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
-                continue
-    
+        already_voted = False
+        for v in c["active_votes"]:
+            if voter_acc["name"] == v["voter"]:
+                already_voted = True
+        
+        if not posting_auth or already_voted:
+            if already_voted:
+                error_msg = "already voted."
+            else:
+                error_msg = "posting authority is missing"
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": error_msg,
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue
+        
+        vote_weight = pending_vote["vote_weight"]
+        if pending_vote["vp_scaler"] > 0:
+            vote_weight *= 1 - ((100 - voter_acc.vp) / 100 * pending_vote["vp_scaler"])
+        
+        sucess = upvote_comment(c, voter_acc["name"], vote_weight)
+
+        if sucess:
+            if pending_vote["leave_comment"]:
+                print("leave comment")
+            voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
+                            "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                            "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
+            continue
+
     for pending_vote in delete_pending_votes:
         pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"])
     delete_pending_votes = []
 
     for pending_vote in pendingVotesTrx.get_command_list_vp_reached():
         if pending_vote["vote_weight"] == 0:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "vote_weight was set to zero.",
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})            
             continue
         voter_acc = Account(pending_vote["voter"], steem_instance=stm)
         age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
+        
         if voter_acc.vp < pending_vote["min_vp"]:
+            continue
+        if age_min < pending_vote["vote_delay_min"]:
             continue
         c = Comment(pending_vote["authorperm"], steem_instance=stm)
         if not valid_age(c):
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than 6.5 days.",
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})               
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         if pending_vote["max_net_votes"] > -1 and pending_vote["max_net_votes"] < c["net_votes"]:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The number of post/comment votes (%d) is higher than max_net_votes (%d)." % (c["net_votes"], pending_vote["max_net_votes"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         if pending_vote["max_pending_payout"] > -1 and pending_vote["max_pending_payout"] < float(c["pending_payout"]):
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The pending payout of post/comment votes (%.2f) is higher than max_pending_payout (%.2f)." % (float(c["pending_payout"]), pending_vote["max_pending_payout"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"])
         if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] <= votes_24h_before:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})              
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"])
         if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] <= votes_168h_before:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue        
         posting_auth = False
@@ -191,6 +251,13 @@ if __name__ == "__main__":
                 already_voted = True        
                 
         if not posting_auth or already_voted:
+            if already_voted:
+                error_msg = "already voted."
+            else:
+                error_msg = "posting authority is missing"
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": error_msg,
+                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "vp_min": pending_vote["vp_min"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         vote_weight = pending_vote["vote_weight"]

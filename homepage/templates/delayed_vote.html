@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+
+                    <h3 class="card-title text-center">One time delayed vote for {{ user }} </h3>
+                  <div class="table-responsive">
+ 
+{% from "_formhelpers.html" import render_field %}
+<form method=post>
+    <dl>
+        {{ render_field(form.authorperm) }}
+        {{ render_field(form.vote_delay_min) }}
+        {{ render_field(form.vote_weight) }}
+    </dl>
+    <p><input type=submit value=Submit>
+</form>
+
+            </div>
+          </div>
+          </div>
+
+
+{% endblock %}
