@@ -77,6 +77,11 @@ steemconnect = SteemConnect(client_id="beem.app", scope="login", get_refresh_tok
 
 # print(config_data)
 databaseConnector = config_data["databaseConnector"]
+db = dataset.connect(databaseConnector)
+voteRulesTrx = VoteRulesTrx(db)
+voteLogTrx = VoteLogTrx(db)
+failedVoteLogTrx = FailedVoteLogTrx(db)
+pendingVotesTrx = PendingVotesTrx(db)
 
 
 def valid_age(post, hours=156):
@@ -136,7 +141,7 @@ class FailedVotesLog(Table):
     timestamp = Col('timestamp')
     vote_weight = Col('vote weight')
     vote_delay_min = Col('vote delay min')
-    vp_min = Col('vp min')
+    min_vp = Col('vp min')
     vp = Col('vp')
     vote_when_vp_reached = Col('vote when vp reached')
 
@@ -331,9 +336,12 @@ def show_rules():
         )        
         return render_template('please_login.html', login_url=login_url)
     # return name
-    db = dataset.connect(databaseConnector)
-    voteRulesTrx = VoteRulesTrx(db)
-    rules = voteRulesTrx.get_posts(name)
+    try:
+        rules = voteRulesTrx.get_posts(name)
+    except:
+        db = dataset.connect(databaseConnector)
+        voteRulesTrx = VoteRulesTrx(db)
+        rules = voteRulesTrx.get_posts(name)
     table = Results(rules)
     table.border = True
     return render_template('show_rules.html', table=table, user=name)    
@@ -360,9 +368,12 @@ def show_vote_log():
         )        
         return render_template('please_login.html', login_url=login_url)
     # return name
-    db = dataset.connect(databaseConnector)
-    voteLogTrx = VoteLogTrx(db)
-    logs = voteLogTrx.get_votes(name)
+    try:
+        logs = voteLogTrx.get_votes(name)
+    except:
+        db = dataset.connect(databaseConnector)
+        voteLogTrx = VoteLogTrx(db)
+        logs = voteLogTrx.get_votes(name)
     table = VotesLog(logs)
     table.border = True
     return render_template('votes_log.html', table=table, user=name)
@@ -390,9 +401,12 @@ def show_failed_vote_log():
         )        
         return render_template('please_login.html', login_url=login_url)
     # return name
-    db = dataset.connect(databaseConnector)
-    failedVoteLogTrx = FailedVoteLogTrx(db)
-    logs = failedVoteLogTrx.get_votes(name)
+    try:
+        logs = failedVoteLogTrx.get_votes(name)
+    except:
+        db = dataset.connect(databaseConnector)
+        failedVoteLogTrx = FailedVoteLogTrx(db)
+        logs = failedVoteLogTrx.get_votes(name)
     table = FailedVotesLog(logs)
     table.border = True
     return render_template('failed_votes_log.html', table=table, user=name)
@@ -419,9 +433,12 @@ def show_pending_votes():
         )        
         return render_template('please_login.html', login_url=login_url)
     # return name
-    db = dataset.connect(databaseConnector)
-    pendingVotesTrx = PendingVotesTrx(db)
-    votes = pendingVotesTrx.get_votes(name)
+    try:
+        votes = pendingVotesTrx.get_votes(name)
+    except:
+        db = dataset.connect(databaseConnector)
+        pendingVotesTrx = PendingVotesTrx(db)
+        votes = pendingVotesTrx.get_votes(name)
     table = PendingVotes(votes)
     table.border = True
     return render_template('pending_votes.html', table=table, user=name)
@@ -446,8 +463,7 @@ def delayed_vote_link(community, author, permlink):
 
     if request.method == 'POST': # and form.validate():
         # save the rule
-        db = dataset.connect(databaseConnector)
-        pendingVotesTrx = PendingVotesTrx(db)
+
         vote_dict = vote_dict_from_form(name, form)
         vote_dict["created"] = datetime.utcnow()
         try:
@@ -458,7 +474,12 @@ def delayed_vote_link(community, author, permlink):
         except:
             return "Wrong authoerperm!"        
         vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
-        pendingVotesTrx.add(vote_dict)
+        try:
+            pendingVotesTrx.add(vote_dict)
+        except:
+            db = dataset.connect(databaseConnector)
+            pendingVotesTrx = PendingVotesTrx(db)        
+            pendingVotesTrx.add(vote_dict)
         flash('Rule created successfully!')
         return redirect('/show_pending_votes')
     else:
@@ -489,8 +510,7 @@ def delayed_vote():
 
     if request.method == 'POST': # and form.validate():
         # save the rule
-        db = dataset.connect(databaseConnector)
-        pendingVotesTrx = PendingVotesTrx(db)
+
         vote_dict = vote_dict_from_form(name, form)
         vote_dict["created"] = datetime.utcnow()
         try:
@@ -502,7 +522,12 @@ def delayed_vote():
             return "Wrong authorperm!"
         
         vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
-        pendingVotesTrx.add(vote_dict)
+        try:
+            pendingVotesTrx.add(vote_dict)
+        except:
+            db = dataset.connect(databaseConnector)
+            pendingVotesTrx = PendingVotesTrx(db)        
+            pendingVotesTrx.add(vote_dict)
         flash('Rule created successfully!')
         return redirect('/show_pending_votes')
 
@@ -532,10 +557,13 @@ def new_rule():
 
     if request.method == 'POST': # and form.validate():
         # save the rule
-        db = dataset.connect(databaseConnector)
-        voteRulesTrx = VoteRulesTrx(db)           
         rule_dict = rule_dict_from_form(name, form)
-        voteRulesTrx.add(rule_dict)        
+        try:
+            voteRulesTrx.add(rule_dict)
+        except:
+            db = dataset.connect(databaseConnector)
+            voteRulesTrx = VoteRulesTrx(db)
+            voteRulesTrx.add(rule_dict)        
         flash('Rule created successfully!')
         return redirect('/show_rules')
 
@@ -555,9 +583,12 @@ def edit_rule():
             "https://steemrewarding.com/welcome",
         )        
         return render_template('please_login.html', login_url=login_url)
-    db = dataset.connect(databaseConnector)
-    voteRulesTrx = VoteRulesTrx(db)    
-    rule = voteRulesTrx.get(name, author, main_post)
+    try:
+        rule = voteRulesTrx.get(name, author, main_post)
+    except:
+        db = dataset.connect(databaseConnector)
+        voteRulesTrx = VoteRulesTrx(db)    
+        rule = voteRulesTrx.get(name, author, main_post)
     if rule:
         form = RuleForm(formdata=request.form)
         if request.method == 'POST': # and form.validate():
@@ -582,9 +613,12 @@ def delete_rule():
             "https://steemrewarding.com/welcome",
         )        
         return render_template('please_login.html', login_url=login_url)
-    db = dataset.connect(databaseConnector)
-    voteRulesTrx = VoteRulesTrx(db)    
-    rule = voteRulesTrx.get(name, author, main_post)
+    try:
+        rule = voteRulesTrx.get(name, author, main_post)
+    except:
+        db = dataset.connect(databaseConnector)
+        voteRulesTrx = VoteRulesTrx(db)    
+        rule = voteRulesTrx.get(name, author, main_post)
     if rule:
         form = RuleForm(formdata=request.form)
         if request.method == 'POST': # and form.validate():
