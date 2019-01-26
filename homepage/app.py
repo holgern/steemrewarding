@@ -95,7 +95,6 @@ def valid_age(post, hours=156):
 
 
 class Results(Table):
-    voter = Col('voter')
     author = Col('author')
     main_post = Col('main post')
     vote_delay_min = Col('Vote delay min')
@@ -128,11 +127,12 @@ class VotesLog(Table):
     authorperm = Col('authorperm')
     author = Col('author')
     timestamp = Col('timestamp')
-    vote_weight = Col('vote weight')
-    vote_delay_min = Col('vote delay min')
-    voted_after_min = Col('voted after min')
-    vp = Col('vp')
+    vote_weight = Col('vote weight [%]')
+    vote_delay_min = Col('vote delay [min]')
+    voted_after_min = Col('voted after [min]')
+    vp = Col('vp [%]')
     vote_when_vp_reached = Col('vote when vp reached')
+    performance = Col('curation performance [%]')
 
 
 class FailedVotesLog(Table):

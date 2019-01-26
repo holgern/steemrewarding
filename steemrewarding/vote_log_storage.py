@@ -86,6 +86,13 @@ class VoteLogTrx(object):
                 table.update(data[d], ["authorperm", "voter"])            
         self.db.commit()
 
+    def update(self, data):
+        """ Add a new data set
+
+        """
+        table = self.db[self.__tablename__]
+        table.update(data, ["authorperm", "voter"])
+
     def get(self, authorperm, voter):
         table = self.db[self.__tablename__]
         return table.find_one(authorperm=authorperm, voter=voter)
@@ -98,6 +105,17 @@ class VoteLogTrx(object):
         for v in table.find(table.table.columns.timestamp > date_before, voter=voter, order_by='-timestamp'):
             votes.append(v)
         return votes
+    
+    def get_log_list(self):
+        table = self.db[self.__tablename__]
+        logs = []
+        for v in table.find(order_by='last_update'):
+            logs.append(v)
+        return logs        
+
+    def get_oldest_log(self):
+        table = self.db[self.__tablename__]
+        return table.find_one(order_by='last_update')    
 
     def get_votes_per_day(self, voter):
         table = self.db[self.__tablename__]
@@ -115,6 +133,15 @@ class VoteLogTrx(object):
         for v in table.find(table.table.columns.timestamp > date_168h_before, voter=voter):
             votes += 1
         return votes
+
+    def delete_old_logs(self, days=7):
+        table = self.db[self.__tablename__]
+        del_logs = []
+        for log in table.find(order_by='timestamp'):
+            if (datetime.utcnow() - log["timestamp"]).total_seconds() - log["voted_after_min"] * 60 > 60 * 60 * 24 * days:
+                del_logs.append(log)
+        for log in del_logs:
+            table.delete(authorperm=log["authorperm"], voter=log["voter"])
 
     def delete(self, ID):
         """ Delete a data set

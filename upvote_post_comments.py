@@ -38,6 +38,7 @@ if __name__ == "__main__":
         # print(config_data)
         databaseConnector = config_data["databaseConnector"]
         wallet_password = config_data["wallet_password"]
+        posting_auth_acc = config_data["posting_auth_acc"]
 
     start_prep_time = time.time()
     db = dataset.connect(databaseConnector)
@@ -171,8 +172,10 @@ if __name__ == "__main__":
             continue       
         posting_auth = False
         for a in voter_acc["posting"]["account_auths"]:
-            if a[0] == "rewarding":
+            if a[0] == posting_auth_acc:
                 posting_auth = True
+        if voter_acc["name"] == posting_auth_acc:
+            posting_auth = True
 
         already_voted = False
         for v in c["active_votes"]:
@@ -200,7 +203,8 @@ if __name__ == "__main__":
                 print("leave comment")
             voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
                             "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
-                            "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+                            "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
+                            "last_update": datetime.utcnow()})
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
 
@@ -269,8 +273,10 @@ if __name__ == "__main__":
             continue        
         posting_auth = False
         for a in voter_acc["posting"]["account_auths"]:
-            if a[0] == "rewarding":
+            if a[0] == posting_auth_acc:
                 posting_auth = True
+        if voter_acc["name"] == posting_auth_acc:
+            posting_auth = True        
 
         already_voted = False
         for v in c["active_votes"]:
@@ -296,7 +302,8 @@ if __name__ == "__main__":
             # add vote to log
             voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
                             "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
-                            "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            
+                            "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
+                            "last_update": datetime.utcnow()})            
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
         continue                        
     
