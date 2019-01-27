@@ -114,12 +114,12 @@ class CommandsTrx(object):
             posts = post
         return posts
 
-    def get_command_list(self):
+    def get_command_list(self, start_timestamp):
         table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(order_by='created'):
-            posts.append(post)
-        return posts
+        commands = []
+        for command in table.find(table.table.columns.created >  start_timestamp, order_by='created'):
+            commands.append(command)
+        return commands
 
     def get_authorperm_list(self):
         table = self.db[self.__tablename__]

@@ -103,9 +103,9 @@ if __name__ == "__main__":
 
             
         age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
-        if age_min > pending_vote["vote_delay_min"] + 3:
+        if age_min > pending_vote["vote_delay_min"] + 60:
             voter_acc = Account(pending_vote["voter"], steem_instance=stm)
-            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than %.2f min." % (pending_vote["vote_delay_min"] + 3),
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than %.2f min." % (pending_vote["vote_delay_min"] + 60),
                                   "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
                                   "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})              
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
