@@ -53,6 +53,7 @@ from steemrewarding.vote_rule_storage import VoteRulesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.pending_vote_storage import PendingVotesTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
+from steemrewarding.account_storage import AccountsDB
 DEBUG = True
 DEBUG = False
 
@@ -82,6 +83,7 @@ voteRulesTrx = VoteRulesTrx(db)
 voteLogTrx = VoteLogTrx(db)
 failedVoteLogTrx = FailedVoteLogTrx(db)
 pendingVotesTrx = PendingVotesTrx(db)
+accountsTrx = AccountsDB(db)
 
 
 def valid_age(post, hours=156):
@@ -145,6 +147,10 @@ class FailedVotesLog(Table):
     vp = Col('vp')
     vote_when_vp_reached = Col('vote when vp reached')
 
+class SettingsForm(FlaskForm):
+
+    upvote_comment = TextAreaField('upvote comment (placeholder for author: {{name}} and placeholder for voter is {{voter}})')
+
 
 class VoteForm(FlaskForm):
 
@@ -198,6 +204,7 @@ class PendingVotes(Table):
     max_votes_per_week = Col('max votes per week')
     vp_scaler = Col('vp scaler')
     leave_comment = Col('leave comment')
+    delete = LinkCol('Delete', 'delete_vote', url_kwargs=dict(authorperm='authorperm', vote_when_vp_reached='vote_when_vp_reached'))
 
 
 def set_form(form, rule):
@@ -254,6 +261,16 @@ def vote_dict_from_form(voter, form):
     vote = {"voter": voter, "authorperm": authorperm, "vote_delay_min": form.vote_delay_min.data, 
             "vote_weight": form.vote_weight.data}
     return vote
+
+def settings_dict_from_form(account, form):
+    """
+    Save the changes to the database
+    """
+    upvote_comment = form.upvote_comment.data
+
+    settings = {"name": account, "upvote_comment": upvote_comment}
+    return settings
+
 
 @app.route('/')
 def main():
@@ -544,6 +561,52 @@ def delayed_vote():
     return render_template('delayed_vote.html', form=form, user=name)
 
 
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    """
+    Add a new rule
+    """
+    
+    access_token = request.args.get("access_token", None)
+ 
+    # access_token = session['access_token']
+    try:
+        if access_token is None:
+            access_token = session['access_token']           
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)  
+    form = SettingsForm(request.form)
+    setting = None
+    try:
+        setting = accountsTrx.get(name)
+    except:
+        db = dataset.connect(databaseConnector)
+        accountsTrx = AccountsDB(db)    
+        setting = accountsTrx.get(name)
+    if request.method == 'POST': # and form.validate():
+        # save the rule
+
+        settings_dict = settings_dict_from_form(name, form)
+
+        try:
+            accountsTrx.upsert(vote_dict)
+        except:
+            db = dataset.connect(databaseConnector)
+            accountsTrx = AccountsDB(db)        
+            accountsTrx.upsert(settings_dict)
+        flash('Settings stored successfully!')
+        return redirect('/welcome')
+    else:
+        if setting:
+            form.upvote_comment.data = setting["upvote_comment"]        
+        return render_template('settings.html', form=form, user=name)
+
+
 @app.route('/new_rule', methods=['GET', 'POST'])
 def new_rule():
     """
@@ -638,6 +701,29 @@ def delete_rule():
             form = set_form(form, rule)
         return render_template('delete_rule.html', form=form, user=name)
 
+
+@app.route('/delete_vote', methods=['GET', 'POST'])
+def delete_vote():
+    access_token = session['access_token']
+    # access_token = request.args.get("access_token", None)
+    authorperm = request.args.get("authorperm", None)
+    vote_when_vp_reached = request.args.get("vote_when_vp_reached", None)
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)
+    try:
+        pendingVotesTrx.delete(authorperm, name, vote_when_vp_reached)
+    except:
+        db = dataset.connect(databaseConnector)
+        pendingVotesTrx = PendingVotesTrx(db)    
+        pendingVotesTrx.delete(authorperm, name, vote_when_vp_reached)
+
+    return redirect('show_pending_votes')
 
 if __name__ == '__main__':
     app.run()

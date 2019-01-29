@@ -25,6 +25,7 @@ from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
 from steemrewarding.utils import isfloat, upvote_comment, valid_age
 from steemrewarding.version import version as rewardingversion
+from steemrewarding.account_storage import AccountsDB
 import dataset
 
 
@@ -53,6 +54,7 @@ if __name__ == "__main__":
     pendingVotesTrx = PendingVotesTrx(db)
     voteLogTrx = VoteLogTrx(db)
     failedVoteLogTrx = FailedVoteLogTrx(db)
+    accountsTrx = AccountsDB(db)
 
     conf_setup = confStorage.get()
     # last_post_block = conf_setup["last_post_block"]
@@ -200,7 +202,14 @@ if __name__ == "__main__":
 
         if sucess:
             if pending_vote["leave_comment"]:
-                print("leave comment")
+                try:
+                    settings = accountsTrx.get(voter_acc["name"])
+                    if settings is not None and "upvote_comment" in settings:
+                        reply_body = settings["upvote_comment"]
+                        reply_body = reply_body.replace("{{name}}", "@%s" % c["author"] ).replace("{{voter}}", "@%s" % voter_acc["name"])
+                        c.reply(reply_body, author=voter_acc["name"])
+                except:
+                    print("Could not leave comment!")
             voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
                             "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                             "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
@@ -209,7 +218,7 @@ if __name__ == "__main__":
             continue
 
     for pending_vote in delete_pending_votes:
-        pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"])
+        pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"], pending_vote["vote_when_vp_reached"])
     delete_pending_votes = []
 
     for pending_vote in pendingVotesTrx.get_command_list_vp_reached():
@@ -298,7 +307,14 @@ if __name__ == "__main__":
         sucess = upvote_comment(c, voter_acc["name"], vote_weight)
         if sucess:
             if pending_vote["leave_comment"]:
-                print("leave comment")
+                try:
+                    settings = accountsTrx.get(voter_acc["name"])
+                    if settings is not None and "upvote_comment" in settings:
+                        reply_body = settings["upvote_comment"]
+                        reply_body = reply_body.replace("{{name}}", "@%s" % c["author"] ).replace("{{voter}}", "@%s" % voter_acc["name"])
+                        c.reply(reply_body, author=voter_acc["name"])
+                except:
+                    print("Could not leave comment!")
             # add vote to log
             voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
                             "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
@@ -308,6 +324,6 @@ if __name__ == "__main__":
         continue                        
     
     for pending_vote in delete_pending_votes:
-        pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"])
+        pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"], pending_vote["vote_when_vp_reached"])
     delete_pending_votes = []
     print("upvote posts script run %.2f s" % (time.time() - start_prep_time))

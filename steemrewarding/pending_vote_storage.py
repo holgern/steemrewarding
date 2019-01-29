@@ -52,7 +52,7 @@ class PendingVotesTrx(object):
 
         """
         table = self.db[self.__tablename__]
-        table.upsert(data, ["authorperm", "voter"])
+        table.upsert(data, ["authorperm", "voter", "vote_when_vp_reached"])
         self.db.commit()
 
     def add_batch(self, data):
@@ -64,11 +64,11 @@ class PendingVotesTrx(object):
         if isinstance(data, list):
             #table.insert_many(data, chunk_size=chunk_size)
             for d in data:
-                table.upsert(d, ["authorperm", "voter"])
+                table.upsert(d, ["authorperm", "voter", "vote_when_vp_reached"])
         else:
             self.db.begin()
             for d in data:
-                table.upsert(data[d], ["authorperm", "voter"])            
+                table.upsert(data[d], ["authorperm", "voter", "vote_when_vp_reached"])            
             
         self.db.commit()
 
@@ -80,10 +80,10 @@ class PendingVotesTrx(object):
         self.db.begin()
         if isinstance(data, list):
             for d in data:
-                table.update(d, ["authorperm", "voter"])
+                table.update(d, ["authorperm", "voter", "vote_when_vp_reached"])
         else:
             for d in data:
-                table.update(data[d], ["authorperm", "voter"])            
+                table.update(data[d], ["authorperm", "voter", "vote_when_vp_reached"])            
         self.db.commit()
 
     def get_latest_command(self):
@@ -121,15 +121,15 @@ class PendingVotesTrx(object):
             if (datetime.utcnow() - vote["comment_timestamp"]).total_seconds() > 60 * 60 * 24 * days:
                 del_votes.append(vote)
         for vote in del_votes:
-            table.delete(authorperm=vote["authorperm"], voter=vote["voter"])
+            table.delete(authorperm=vote["authorperm"], voter=vote["voter"], vote_when_vp_reached=vote["vote_when_vp_reached"])
 
-    def delete(self, authorperm, voter):
+    def delete(self, authorperm, voter, vote_when_vp_reached):
         """ Delete a data set
 
            :param int ID: database id
         """
         table = self.db[self.__tablename__]
-        table.delete(authorperm=authorperm, voter=voter)
+        table.delete(authorperm=authorperm, voter=voter, vote_when_vp_reached=vote_when_vp_reached)
 
     def wipe(self, sure=False):
         """Purge the entire database. No data set will survive this!"""
