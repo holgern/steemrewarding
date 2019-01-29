@@ -91,22 +91,23 @@ if __name__ == "__main__":
     b = Blockchain(steem_instance = stm)
     updated_vote_log = []
     voteLogTrx.delete_old_logs(7)
-    vote_log = voteLogTrx.get_oldest_log()
-    if vote_log is not None:
-        authorperm = vote_log["authorperm"]
-        c = Comment(authorperm, steem_instance=stm)
-        curation_rewards_SBD = c.get_curation_rewards(pending_payout_SBD=True)
-        performance = 0
-        for vote in c["active_votes"]:
-            if vote["voter"] != vote_log["voter"]:
-                continue
-            vote_SBD = stm.rshares_to_sbd(int(vote["rshares"]))
-            curation_SBD = curation_rewards_SBD["active_votes"][vote["voter"]]
-            if vote_SBD > 0:
-                performance = (float(curation_SBD) / vote_SBD * 100)
-        vote_log["last_update"] = datetime.utcnow()
-        vote_log["performance"] = performance
-        voteLogTrx.update(vote_log)
+    for n in range(4):
+        vote_log = voteLogTrx.get_oldest_log()
+        if vote_log is not None:
+            authorperm = vote_log["authorperm"]
+            c = Comment(authorperm, steem_instance=stm)
+            curation_rewards_SBD = c.get_curation_rewards(pending_payout_SBD=True)
+            performance = 0
+            for vote in c["active_votes"]:
+                if vote["voter"] != vote_log["voter"]:
+                    continue
+                vote_SBD = stm.rshares_to_sbd(int(vote["rshares"]))
+                curation_SBD = curation_rewards_SBD["active_votes"][vote["voter"]]
+                if vote_SBD > 0:
+                    performance = (float(curation_SBD) / vote_SBD * 100)
+            vote_log["last_update"] = datetime.utcnow()
+            vote_log["performance"] = performance
+            voteLogTrx.update(vote_log)
         
 
     print("calc curation perf script run %.2f s" % (time.time() - start_prep_time))

@@ -150,14 +150,14 @@ if __name__ == "__main__":
             continue
         # check for max votes per day/week
         votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"])
-        if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] <= votes_24h_before:
+        if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] < votes_24h_before:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                                   "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"])
-        if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] <= votes_168h_before:
+        if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] < votes_168h_before:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                                   "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
@@ -258,14 +258,14 @@ if __name__ == "__main__":
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"])
-        if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] <= votes_24h_before:
+        if pending_vote["max_votes_per_day"] > -1 and pending_vote["max_votes_per_day"] < votes_24h_before:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                                   "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})              
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"]})
             continue
         votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"])
-        if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] <= votes_168h_before:
+        if pending_vote["max_votes_per_week"] > -1 and pending_vote["max_votes_per_week"] < votes_168h_before:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                                   "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            

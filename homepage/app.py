@@ -154,10 +154,11 @@ class VoteForm(FlaskForm):
 
 class RuleForm(FlaskForm):
 
-    author = StringField('author')
+    author = StringField('author (must not be empty!)')
     main_post = BooleanField('main_post', default=True)
     vote_delay_min = FloatField('vote_delay_min', default=15.0)
     vote_weight = FloatField('vote_weight', default=100.0)
+    
     enabled = BooleanField('enabled', default=True)
     
     include_tags = TextAreaField('include_tags')
@@ -246,8 +247,11 @@ def vote_dict_from_form(voter, form):
     """
     Save the changes to the database
     """
+    authorperm = form.authorperm.data
+    author, permlink = resolve_authorperm(authorperm)
+    authorperm = construct_authorperm(author, permlink)
 
-    vote = {"voter": voter, "authorperm": form.authorperm.data, "vote_delay_min": form.vote_delay_min.data, 
+    vote = {"voter": voter, "authorperm": authorperm, "vote_delay_min": form.vote_delay_min.data, 
             "vote_weight": form.vote_weight.data}
     return vote
 
@@ -474,6 +478,9 @@ def delayed_vote_link(community, author, permlink):
         except:
             return "Wrong authoerperm!"        
         vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
+        vote_dict["min_vp"] = 10
+        vote_dict["vote_when_vp_reached"] = True
+        vote_dict["exclude_declined_payout"] = False
         try:
             pendingVotesTrx.add(vote_dict)
         except:
@@ -522,6 +529,9 @@ def delayed_vote():
             return "Wrong authorperm!"
         
         vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
+        vote_dict["min_vp"] = 10
+        vote_dict["vote_when_vp_reached"] = True
+        vote_dict["exclude_declined_payout"] = False
         try:
             pendingVotesTrx.add(vote_dict)
         except:

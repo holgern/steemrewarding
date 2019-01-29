@@ -17,14 +17,16 @@
             <dt>{{ form.main_post.label }}
     <dd>{{ form.main_post(checked=form.main_post)|safe }}
     </dd>
-        
-        {{ render_field(form.vote_delay_min) }}
-        {{ render_field(form.include_tags) }}
-        {{ render_field(form.exclude_tags) }}
         {{ render_field(form.vote_weight) }}
+        {{ render_field(form.vote_delay_min) }}
+        
+
+        
                     <dt>{{ form.enabled.label }}
     <dd>{{ form.enabled(checked=form.enabled)|safe }}
     </dd>
+        {{ render_field(form.include_tags) }}
+        {{ render_field(form.exclude_tags) }}
         {{ render_field(form.vote_sbd) }}
         {{ render_field(form.max_votes_per_day) }}
         {{ render_field(form.max_votes_per_week) }}

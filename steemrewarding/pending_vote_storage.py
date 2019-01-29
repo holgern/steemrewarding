@@ -114,6 +114,15 @@ class PendingVotesTrx(object):
             posts.append(post)
         return posts
 
+    def delete_old_votes(self, days):
+        table = self.db[self.__tablename__]
+        del_votes = []
+        for vote in table.find(order_by='comment_timestamp'):
+            if (datetime.utcnow() - vote["comment_timestamp"]).total_seconds() > 60 * 60 * 24 * days:
+                del_votes.append(vote)
+        for vote in del_votes:
+            table.delete(authorperm=vote["authorperm"], voter=vote["voter"])
+
     def delete(self, authorperm, voter):
         """ Delete a data set
 

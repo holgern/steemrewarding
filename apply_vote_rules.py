@@ -84,6 +84,7 @@ if __name__ == "__main__":
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     
+    pendingVotesTrx.delete_old_votes(6.4)
     
     for post in postTrx.get_posts_list(last_processed_timestamp):
         authorperm = post["authorperm"]
@@ -93,26 +94,12 @@ if __name__ == "__main__":
         rules = voteRulesTrx.get_rules(author, main_post)
         if len(rules) == 0:
             continue
-        c = Comment(authorperm, steem_instance=stm)
-        voters = []
-        for v in c["active_votes"]:
-            voters.append(v["voter"])
-        
-        not_processed_rules = []
-        for r in rules:
-            voter = r["voter"]
-            if voter in voters:
-                continue
-            not_processed_rules.append(r)
-        if len(not_processed_rules) == 0:
-            continue
-        
-        print("vote %s - rules %d" % (authorperm, len(not_processed_rules)))
-        for rule in not_processed_rules:
+        fitting_rules = []
+        for rule in rules:
             # print(rule)
-            if not tags_included(rule["include_tags"], c["tags"]):
+            if not tags_included(rule["include_tags"], post["tags"]):
                 continue
-            if not tags_excluded(rule["exclude_tags"], c["tags"]):
+            if not tags_excluded(rule["exclude_tags"], post["tags"]):
                 continue
             
             if post["word_count"] < rule["minimum_word_count"]:
@@ -135,7 +122,28 @@ if __name__ == "__main__":
                     if app.lower().strip() in post["app"].split("/")[0]:
                         apps_excluded = False
                 if not apps_excluded:
-                    continue
+                    continue        
+            fitting_rules.append(rule)
+        
+        if len(fitting_rules) == 0:
+            continue
+        c = Comment(authorperm, steem_instance=stm)
+        voters = []
+        for v in c["active_votes"]:
+            voters.append(v["voter"])
+        
+        not_processed_rules = []
+        for r in fitting_rules:
+            voter = r["voter"]
+            if voter in voters:
+                continue
+            not_processed_rules.append(r)
+        if len(not_processed_rules) == 0:
+            continue
+        
+        print("vote %s - rules %d" % (authorperm, len(not_processed_rules)))
+        for rule in not_processed_rules:
+                
             if rule["include_text"] is not None and rule["include_text"] != "":
                 if c.body.find(rule["include_text"]) == -1:
                     continue
