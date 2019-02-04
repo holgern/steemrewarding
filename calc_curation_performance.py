@@ -87,6 +87,8 @@ if __name__ == "__main__":
         print("could not update nodes")
     
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
+    if "https://api.steemit.com" in node_list:
+        node_list.remove("https://api.steemit.com")
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     b = Blockchain(steem_instance = stm)
     updated_vote_log = []
@@ -96,7 +98,13 @@ if __name__ == "__main__":
         if vote_log is not None:
             authorperm = vote_log["authorperm"]
             c = Comment(authorperm, steem_instance=stm)
-            curation_rewards_SBD = c.get_curation_rewards(pending_payout_SBD=True)
+            try:
+                curation_rewards_SBD = c.get_curation_rewards(pending_payout_SBD=True)
+            except:
+                print("Could not calc curation rewards for %s (stm: %s)" % (c["authorperm"], stm))
+                vote_log["last_update"] = datetime.utcnow()
+                voteLogTrx.update(vote_log)
+                continue
             performance = 0
             for vote in c["active_votes"]:
                 if vote["voter"] != vote_log["voter"]:

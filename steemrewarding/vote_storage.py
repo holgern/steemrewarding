@@ -143,6 +143,13 @@ class VotesTrx(object):
             posts.append(post["authorperm"])
         return posts
 
+    def get_votes_list(self, start_timestamp):
+        table = self.db[self.__tablename__]
+        votes = []
+        for vote in table.find(table.table.columns.timestamp >  start_timestamp, order_by='timestamp'):
+            votes.append(vote)
+        return votes
+
     def delete_old_votes(self, days):
         table = self.db[self.__tablename__]
         del_votes = []

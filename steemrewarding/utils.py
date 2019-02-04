@@ -76,3 +76,25 @@ def tags_excluded(exclude_tags, tags):
                     if t.lower().strip() not in tags:
                         tags_excluded = True           
     return tags_excluded
+
+
+def string_excluded(exclude_rule, string):
+    if exclude_rule is not None and exclude_rule != "":
+        exclude_rule = exclude_rule.split(",")
+        excluded = True
+        for s in exclude_rule:
+            if s.lower().strip() == string:
+                excluded = False
+        return excluded
+    return True
+
+
+def string_included(include_rule, string):
+    if include_rule is not None and include_rule != "":
+        include_rule = include_rule.split(",")
+        include = False
+        for s in include_rule:
+            if s.lower().strip() == string:
+                include = True
+        return include
+    return True

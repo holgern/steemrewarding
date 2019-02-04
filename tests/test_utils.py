@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import unittest
 from datetime import datetime, date, timedelta
-from steemrewarding.utils import isfloat, tags_included, tags_excluded
+from steemrewarding.utils import isfloat, tags_included, tags_excluded, string_included, string_excluded
 
 
 class Testcases(unittest.TestCase):
@@ -47,3 +47,26 @@ class Testcases(unittest.TestCase):
         self.assertFalse(tags_excluded("a,a&b", ["a", "b", "c"]))
         self.assertFalse(tags_excluded("d,a&c", ["a", "b", "c"]))
         self.assertFalse(tags_excluded("c", ["b", "c"]))
+
+    def test_string_excluded(self):
+        self.assertTrue(string_excluded("", "a"))
+        self.assertTrue(string_excluded(None, "a"))
+        self.assertTrue(string_excluded("c", "a"))
+        self.assertTrue(string_excluded("c", ""))
+        self.assertTrue(string_excluded("c", None))
+        self.assertTrue(string_excluded("c,b", "a"))
+        self.assertFalse(string_excluded("a", "a"))
+        self.assertFalse(string_excluded("A", "a"))
+        self.assertFalse(string_excluded("A ", "a"))
+        self.assertFalse(string_excluded("a,b", "a"))
+
+    def test_string_included(self):
+        self.assertTrue(string_included("", "a"))
+        self.assertTrue(string_included(None, "a"))
+        self.assertTrue(string_included("a", "a"))
+        self.assertTrue(string_included("a,b", "a"))
+        self.assertTrue(string_included("b,a", "a"))
+        self.assertTrue(string_included("A", "a"))
+        self.assertTrue(string_included("A ", "a"))
+        self.assertFalse(string_included("c", "a"))
+        self.assertFalse(string_included("b,c", "a"))

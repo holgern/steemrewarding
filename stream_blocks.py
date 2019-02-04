@@ -17,6 +17,7 @@ from beem.constants import STEEM_100_PERCENT
 from steemrewarding.post_storage import PostsTrx
 from steemrewarding.command_storage import CommandsTrx
 from steemrewarding.vote_rule_storage import VoteRulesTrx
+from steemrewarding.trail_vote_rule_storage import TrailVoteRulesTrx
 from steemrewarding.config_storage import ConfigurationDB
 from steemrewarding.vote_storage import VotesTrx
 from steemrewarding.utils import isfloat
@@ -48,6 +49,7 @@ if __name__ == "__main__":
     confStorage = ConfigurationDB(db)
     voteTrx = VotesTrx(db)
     commandsTrx = CommandsTrx(db)
+    trailVoteRuleTrx = TrailVoteRulesTrx(db)
     
     conf_setup = confStorage.get()
     last_streamed_block = conf_setup["last_streamed_block"]
@@ -55,7 +57,7 @@ if __name__ == "__main__":
     print("stream new posts")
     authors_list_posts = voteRulesTrx.get_authors()
     authors_list_comments = voteRulesTrx.get_authors(main_post=False)
-    voter_list = []
+    voter_list = trailVoteRuleTrx.get_trail_voters()
     if True:
         max_batch_size = 50
         threading = False
@@ -88,11 +90,14 @@ if __name__ == "__main__":
     tokenizer = RegexpTokenizer(r'\w+')
  
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
+    if "https://api.steemit.com" in node_list:
+        node_list.remove("https://api.steemit.com")    
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     
     b = Blockchain(steem_instance = stm)
-    print("deleting old posts")
+    print("deleting old posts and votes")
     postTrx.delete_old_posts(6)
+    voteTrx.delete_old_votes(6)
     # print("reading all authorperm")
     already_voted_posts = []
     flagged_posts = []
@@ -171,12 +176,19 @@ if __name__ == "__main__":
         #        already_voted = True
         if main_post and ops["author"] in authors_list_posts or not main_post and ops["author"] in authors_list_comments:
             app = None
-            if "app" in c.json_metadata:
-                app = c.json_metadata["app"]
+            json_metadata = c.json_metadata
+            if isinstance(json_metadata, str):
+                json_metadata = json.loads(json_metadata)
+            if "app" in json_metadata:
+                app = json_metadata["app"]
             word_count = len(tokenizer.tokenize(c.body))
+            net_votes = len(c["active_votes"])
+            vote_rshares = 0
+            for v in c["active_votes"]:
+                vote_rshares += int(v["rshares"])
             posts_dict[authorperm] = {"authorperm": authorperm, "author": ops["author"], "created": dt_created, "block": ops["block_num"],
                                       "main_post": main_post, "tags": ",".join(c["tags"]), "app": app, "decline_payout": int(c["max_accepted_payout"]) == 0,
-                                      "word_count": word_count, "net_votes": c["net_votes"], "vote_rshares": int(c["vote_rshares"]), "pending_payout_value": float(c["pending_payout_value"]),
+                                      "word_count": word_count, "net_votes": net_votes, "vote_rshares": vote_rshares, "pending_payout_value": float(c["pending_payout_value"]),
                                       "update": datetime.utcnow()}
         
         if len(posts_dict) > 0:

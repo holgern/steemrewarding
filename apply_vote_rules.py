@@ -20,7 +20,7 @@ from steemrewarding.vote_rule_storage import VoteRulesTrx
 from steemrewarding.pending_vote_storage import PendingVotesTrx
 from steemrewarding.config_storage import ConfigurationDB
 from steemrewarding.vote_storage import VotesTrx
-from steemrewarding.utils import isfloat, tags_included, tags_excluded
+from steemrewarding.utils import isfloat, tags_included, tags_excluded, string_included, string_excluded
 from steemrewarding.version import version as rewardingversion
 import dataset
 
@@ -82,6 +82,8 @@ if __name__ == "__main__":
         print("could not update nodes")
     
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
+    if "https://api.steemit.com" in node_list:
+        node_list.remove("https://api.steemit.com")    
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     
     pendingVotesTrx.delete_old_votes(6.4)
@@ -106,23 +108,14 @@ if __name__ == "__main__":
                 continue
             if rule["exclude_declined_payout"] and post["decline_payout"]:
                 continue
-            if rule["include_apps"] is not None and rule["include_apps"] != "":
-                include_apps = rule["include_apps"].split(",")
-                apps_included = True
-                for app in include_apps:
-                    if app.lower().strip() not in post["app"].split("/")[0]:
-                        apps_included = False
-                if not apps_included:
-                    continue
-                
-            if rule["exclude_apps"] is not None and rule["exclude_apps"] != "":
-                exclude_apps = rule["exclude_apps"].split(",")
-                apps_excluded = True
-                for app in exclude_apps:
-                    if app.lower().strip() in post["app"].split("/")[0]:
-                        apps_excluded = False
-                if not apps_excluded:
-                    continue        
+            app = post["app"]
+            if app is not None and app.find("/") > -1:
+                app = app.split("/")[0]
+            if not string_included(rule["include_apps"], app):
+                continue
+            if not string_excluded(rule["exclude_apps"], app):
+                continue            
+        
             fitting_rules.append(rule)
         
         if len(fitting_rules) == 0:
@@ -155,7 +148,8 @@ if __name__ == "__main__":
                 pending_vote = {"authorperm": authorperm, "voter": rule["voter"], "vote_weight": rule["vote_weight"], "comment_timestamp": c["created"].replace(tzinfo=None),
                                 "vote_delay_min": rule["vote_delay_min"], "created": datetime.utcnow(), "min_vp": rule["min_vp"], "vote_when_vp_reached": rule["vote_when_vp_reached"],
                                 "vp_reached_order": rule["vp_reached_order"], "max_net_votes": rule["max_net_votes"], "max_pending_payout": rule["max_pending_payout"],
-                                "max_votes_per_day": rule["max_votes_per_day"], "max_votes_per_week": rule["max_votes_per_week"], "vp_scaler": rule["vp_scaler"], "leave_comment": rule["leave_comment"]}
+                                "max_votes_per_day": rule["max_votes_per_day"], "max_votes_per_week": rule["max_votes_per_week"], "vp_scaler": rule["vp_scaler"], "leave_comment": rule["leave_comment"],
+                                "maximum_vote_delay_min": rule["maximum_vote_delay_min"]}
                 pendingVotesTrx.add(pending_vote)
 
     confStorage.update({"last_processed_timestamp": last_processed_timestamp})

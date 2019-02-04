@@ -85,6 +85,8 @@ if __name__ == "__main__":
         print("could not update nodes")
     
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
+    if "https://api.steemit.com" in node_list:
+        node_list.remove("https://api.steemit.com")    
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     
     
