@@ -113,6 +113,13 @@ class TrailVoteRulesTrx(object):
             data.append(v)
         return data
 
+    def get_rules_by_account(self, account):
+        table = self.db[self.__tablename__]
+        data = [] 
+        for v in table.find(account=account):
+            data.append(v)
+        return data
+    
     def delete(self, voter_to_follow, account):
         """ Delete a data set
 

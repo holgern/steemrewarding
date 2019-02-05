@@ -50,6 +50,7 @@ from beem.constants import STEEM_VOTE_REGENERATION_SECONDS, STEEM_100_PERCENT, S
 from beem.constants import state_object_size_info, resource_execution_time
 from wtforms import Form, StringField, SelectField, validators, BooleanField, FloatField, IntegerField, TextAreaField
 from steemrewarding.vote_rule_storage import VoteRulesTrx
+from steemrewarding.trail_vote_rule_storage import TrailVoteRulesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.pending_vote_storage import PendingVotesTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
@@ -125,6 +126,34 @@ class Results(Table):
     # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
 
 
+class TrailResults(Table):
+    voter_to_follow = Col('voter to follow')
+    # account = Col('account')
+    enabled = Col('enabled')
+    only_main_post = Col('only main post')
+    vote_weight_treshold = Col('vote weight treshold')
+    vote_weight_scaler = Col('vote weight scaler')
+    vote_weight_offset = Col('vote weight offset')
+    
+    include_authors = Col('include authors')
+    exclude_authors = Col('exclude authors')    
+    include_tags = Col('include tags')
+    exclude_tags = Col('exclude tags')
+    minimum_vote_delay_min = Col('minimum vote_delay min')
+    maximum_vote_delay_min = Col('maximum vote_delay min')
+    
+    max_votes_per_day = Col('max votes per day')
+    max_votes_per_week = Col('max votes per week')
+    min_vp = Col('min vp')
+    vp_scaler = Col('vp scaler')
+    exclude_declined_payout = Col('exclude declined payout')
+    max_net_votes = Col('max net votes')
+    max_pending_payout = Col('max pending payout')
+    edit = LinkCol('Edit', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
+    delete = LinkCol('Delete', 'delete_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
+    # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
+
+
 class VotesLog(Table):
     authorperm = Col('authorperm')
     author = Col('author')
@@ -189,6 +218,38 @@ class RuleForm(FlaskForm):
     exclude_text = TextAreaField('exclude_text')
 
 
+class TrailRuleForm(FlaskForm):
+
+    voter_to_follow = StringField('vote to follow (must not be empty!)')
+    # account = StringField("StringField")
+    only_main_post = BooleanField('only_main_post', default=True)
+    vote_weight_treshold = FloatField('vote_weight_treshold (skip votes with lower weight)', default=0.0)
+    
+    vote_weight_scaler = FloatField('vote_weight_scaler', default=50.0)
+    vote_weight_offset = FloatField('vote_weight_offset', default=0.0)
+
+    enabled = BooleanField('enabled', default=True)
+    
+    minimum_vote_delay_min = FloatField('minimum_vote_delay_min (vote is delayed when earlier)', default=13.0)
+    maximum_vote_delay_min = FloatField('maximum_vote_delay_min (vote is skipped when older)', default=9360.0)    
+    
+    include_authors = TextAreaField('include_authors')
+    exclude_authors = TextAreaField('exclude_authors')    
+    
+    include_tags = TextAreaField('include_tags')
+    exclude_tags = TextAreaField('exclude_tags')
+    
+    max_votes_per_day = IntegerField('max_votes_per_day', default=-1)
+    max_votes_per_week = IntegerField('max_votes_per_week', default=-1)
+
+    min_vp = FloatField('min_vp', default=90.0)
+    vp_scaler = FloatField('vp_scaler', default=0.0)
+    
+    exclude_declined_payout = BooleanField('exclude_declined_payout', default=True)
+    max_net_votes = IntegerField('max_net_votes', default=-1)
+    max_pending_payout = FloatField('max_pending_payout', default=-1.0)
+    
+
 class PendingVotes(Table):
     authorperm = Col('authorperm')
     vote_weight = Col('vote weight')
@@ -233,6 +294,30 @@ def set_form(form, rule):
     form.exclude_text.data = rule["exclude_text"]
     return form
 
+
+def set_form_trail_votes(form, rule):
+    form.voter_to_follow.data = rule["voter_to_follow"]
+    form.only_main_post.data = rule["only_main_post"]
+    form.vote_weight_treshold.data = rule["vote_weight_treshold"]
+    form.include_authors.data = rule["include_authors"]
+    form.exclude_authors.data = rule["exclude_authors"]
+    form.min_vp.data = rule["min_vp"]
+    form.vote_weight_scaler.data = rule["vote_weight_scaler"]
+    form.vote_weight_offset.data = rule["vote_weight_offset"]
+    form.max_votes_per_day.data = rule["max_votes_per_day"]
+    form.max_votes_per_week.data = rule["max_votes_per_week"]
+    form.include_tags.data = rule["include_tags"]
+    form.exclude_tags.data = rule["exclude_tags"]
+    form.exclude_declined_payout.data = rule["exclude_declined_payout"]
+    form.minimum_vote_delay_min.data = rule["minimum_vote_delay_min"]
+    form.maximum_vote_delay_min.data = rule["maximum_vote_delay_min"]
+    form.enabled.data = rule["enabled"]
+    form.max_net_votes.data = rule["max_net_votes"]
+    form.max_pending_payout.data = rule["max_pending_payout"]
+    form.vp_scaler.data = rule["vp_scaler"]
+    return form
+
+
 def rule_dict_from_form(voter, form):
     """
     Save the changes to the database
@@ -249,6 +334,25 @@ def rule_dict_from_form(voter, form):
             "max_pending_payout": form.max_pending_payout.data, "include_text": form.include_text.data, "exclude_text": form.exclude_text.data}
 
     return rule
+
+
+def trail_rule_dict_from_form(account, form):
+    """
+    Save the changes to the database
+    """
+
+    rule = {"account": account, "voter_to_follow": form.voter_to_follow.data, "only_main_post": form.only_main_post.data,
+            "vote_weight_treshold": form.vote_weight_treshold.data, "include_authors": form.include_authors.data,
+            "exclude_authors": form.exclude_authors.data, "min_vp": form.min_vp.data,
+            "vote_weight_scaler": form.vote_weight_scaler.data, "vote_weight_offset": form.vote_weight_offset.data, "max_votes_per_day": form.max_votes_per_day.data,
+            "max_votes_per_week": form.max_votes_per_week.data, "include_tags": form.include_tags.data,
+            "exclude_tags": form.exclude_tags.data, "exclude_declined_payout": form.exclude_declined_payout.data,
+            "minimum_vote_delay_min": form.minimum_vote_delay_min.data,
+            "maximum_vote_delay_min": form.maximum_vote_delay_min.data, "enabled": form.enabled.data, "max_net_votes": form.max_net_votes.data,
+            "max_pending_payout": form.max_pending_payout.data, "vp_scaler": form.vp_scaler.data}
+
+    return rule
+
 
 def vote_dict_from_form(voter, form):
     """
@@ -366,6 +470,38 @@ def show_rules():
     table = Results(rules)
     table.border = True
     return render_template('show_rules.html', table=table, user=name)    
+
+@app.route('/show_trail_rules', methods=['GET'])
+def show_trail_rules():
+    access_token = request.args.get("access_token", None)
+    if access_token is None and 'access_token' not in session:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)     
+    elif access_token is None:
+        access_token = session['access_token']
+    else:
+        session['access_token'] = access_token
+    try:
+      
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)
+    # return name
+    try:
+        rules = trailVoteRulesTrx.get_rules_by_account(name)
+    except:
+        db = dataset.connect(databaseConnector)
+        trailVoteRulesTrx = TrailVoteRulesTrx(db)
+        rules = trailVoteRulesTrx.get_rules_by_account(name)
+    table = TrailResults(rules)
+    table.border = True
+    return render_template('show_trail_rules.html', table=table, user=name)
 
 @app.route('/show_vote_log', methods=['GET'])
 def show_vote_log():
@@ -607,6 +743,42 @@ def settings():
         return render_template('settings.html', form=form, user=name)
 
 
+@app.route('/new_trail_rule', methods=['GET', 'POST'])
+def new_trail_rule():
+    """
+    Add a new rule
+    """
+    
+    access_token = request.args.get("access_token", None)
+ 
+    # access_token = session['access_token']
+    try:
+        if access_token is None:
+            access_token = session['access_token']           
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)  
+    form = TrailRuleForm(request.form)
+
+    if request.method == 'POST': # and form.validate():
+        # save the rule
+        rule_dict = trail_rule_dict_from_form(name, form)
+        try:
+            trailVoteRulesTrx.add(rule_dict)
+        except:
+            db = dataset.connect(databaseConnector)
+            trailVoteRulesTrx = TrailVoteRulesTrx(db)
+            trailVoteRulesTrx.add(rule_dict)        
+        flash('Trail Rule created successfully!')
+        return redirect('/show_trail_rules')
+
+    return render_template('new_trail_rule.html', form=form, user=name)
+
+
 @app.route('/new_rule', methods=['GET', 'POST'])
 def new_rule():
     """
@@ -700,6 +872,63 @@ def delete_rule():
         else:
             form = set_form(form, rule)
         return render_template('delete_rule.html', form=form, user=name)
+
+@app.route('/edit_trail_rule', methods=['GET', 'POST'])
+def edit_trail_rule():
+    access_token = session['access_token']
+    # access_token = request.args.get("access_token", None)
+    voter_to_follow = request.args.get("voter_to_follow", None)
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)
+    try:
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+    except:
+        db = dataset.connect(databaseConnector)
+        trailVoteRulesTrx = TrailVoteRulesTrx(db)    
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+    if rule:
+        form = TrailRuleForm(formdata=request.form)
+        if request.method == 'POST': # and form.validate():
+            rule_dict = trail_rule_dict_from_form(name, form)
+            trailVoteRulesTrx.update(rule_dict)
+            return redirect('/show_trail_rules')
+        else:
+            form = set_form_trail_votes(form, rule)
+        return render_template('edit_trail_rule.html', form=form, user=name)
+
+@app.route('/delete_trail_rule', methods=['GET', 'POST'])
+def delete_trail_rule():
+    access_token = session['access_token']
+    # access_token = request.args.get("access_token", None)
+    voter_to_follow = request.args.get("voter_to_follow", None)
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        login_url = steemconnect.get_login_url(
+            "https://steemrewarding.com/welcome",
+        )        
+        return render_template('please_login.html', login_url=login_url)
+    try:
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+    except:
+        db = dataset.connect(databaseConnector)
+        trailVoteRulesTrx = TrailVoteRulesTrx(db)
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+    if rule:
+        form = TrailRuleForm(formdata=request.form)
+        if request.method == 'POST': # and form.validate():
+            trailVoteRulesTrx.delete(voter_to_follow, name)
+            return redirect('/show_trail_rules')
+        else:
+            form = set_form_trail_votes(form, rule)
+        return render_template('delete_trail_rule.html', form=form, user=name)
 
 
 @app.route('/delete_vote', methods=['GET', 'POST'])
