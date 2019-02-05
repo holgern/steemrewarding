@@ -56,6 +56,7 @@ from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.pending_vote_storage import PendingVotesTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
 from steemrewarding.account_storage import AccountsDB
+from steemrewarding.version import version as rewardingversion
 DEBUG = True
 DEBUG = False
 
@@ -405,7 +406,7 @@ def login(func):
 @login
 def main():
     name = steemconnect.me()["name"]
-    return render_template('welcome.html', user=name)
+    return render_template('welcome.html', user=name, rewardingversion=rewardingversion)
 
 @app.route('/logout')
 def logout():
@@ -424,7 +425,7 @@ def logout():
 @login
 def welcome():
     name = steemconnect.me()["name"]
-    return render_template('welcome.html', user=name)
+    return render_template('welcome.html', user=name, rewardingversion=rewardingversion)
 
 @app.route('/show_rules', methods=['GET'])
 @login

@@ -45,12 +45,22 @@ def upvote_comment(c_comment, acc_vote_name, acc_vote_weight):
         cnt += 1
     return vote_sucessfull
 
+def split_string(string):
+    if string.find(",") == -1 and string.strip().find(" ") > -1:
+        string = string.strip().split(" ")
+    elif string.find(",") == -1 and string.strip().find(";") > -1:
+        string = string.strip().split(";")
+    else:
+        string = string.split(",")
+    return string
 
 def tags_included(include_tags, tags):
     tags_included = True
     if include_tags is not None and include_tags != "":
         tags_included = False
-        for tag in include_tags.split(","):
+        include_tags = split_string(include_tags)
+         
+        for tag in include_tags:
             if tag.find("&") == -1:
                 if tag.lower().strip() in tags:
                     tags_included = True
@@ -66,7 +76,9 @@ def tags_excluded(exclude_tags, tags):
     tags_excluded = True
     if exclude_tags is not None and exclude_tags != "":
         tags_excluded = True
-        for tag in exclude_tags.split(","):
+        exclude_tags = split_string(exclude_tags)    
+
+        for tag in exclude_tags:
             if tag.find("&") == -1:
                 if tag.lower().strip() in tags:
                     tags_excluded = False
@@ -80,7 +92,8 @@ def tags_excluded(exclude_tags, tags):
 
 def string_excluded(exclude_rule, string):
     if exclude_rule is not None and exclude_rule != "":
-        exclude_rule = exclude_rule.split(",")
+        exclude_rule = split_string(exclude_rule)
+
         excluded = True
         for s in exclude_rule:
             if s.lower().strip() == string:
@@ -91,7 +104,7 @@ def string_excluded(exclude_rule, string):
 
 def string_included(include_rule, string):
     if include_rule is not None and include_rule != "":
-        include_rule = include_rule.split(",")
+        include_rule = split_string(include_rule)
         include = False
         for s in include_rule:
             if s.lower().strip() == string:
