@@ -15,6 +15,7 @@ import logging
 import click
 import dataset
 import re
+from functools import wraps
 from beem.instance import set_shared_steem_instance, shared_steem_instance
 from beem.amount import Amount
 from beem.price import Price
@@ -85,7 +86,6 @@ voteLogTrx = VoteLogTrx(db)
 failedVoteLogTrx = FailedVoteLogTrx(db)
 pendingVotesTrx = PendingVotesTrx(db)
 accountsTrx = AccountsDB(db)
-
 
 def valid_age(post, hours=156):
     """
@@ -375,30 +375,36 @@ def settings_dict_from_form(account, form):
     settings = {"name": account, "upvote_comment": upvote_comment}
     return settings
 
+def login(func):
+    @wraps(func)
+    def check_access_token(*args, **kwargs):
+        access_token = request.args.get("access_token", None)
+        if access_token is None and 'access_token' not in session:
+            login_url = steemconnect.get_login_url(
+                "https://steemrewarding.com/welcome",
+            )        
+            return render_template('please_login.html', login_url=login_url)
+        elif access_token is None:
+            access_token = session['access_token']
+        else:
+            session['access_token'] = access_token
+        try:
+          
+            steemconnect.set_access_token(access_token)
+            name = steemconnect.me()["name"]
+        except:
+            login_url = steemconnect.get_login_url(
+                "https://steemrewarding.com/welcome",
+            )        
+            return render_template('please_login.html', login_url=login_url)        
+        return func(*args, **kwargs)
+    return check_access_token
+
 
 @app.route('/')
+@login
 def main():
-    access_token = request.args.get("access_token", None)
-    if access_token is None and 'access_token' not in session:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    elif access_token is None:
-        access_token = session['access_token']
-    else:
-        session['access_token'] = access_token
-    try:
-      
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    # return name
-
+    name = steemconnect.me()["name"]
     return render_template('welcome.html', user=name)
 
 @app.route('/logout')
@@ -406,61 +412,24 @@ def logout():
        
     if 'access_token' in session:
         session['access_token'] = None
-
+        name = ""
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
         )        
         return render_template('please_login.html', login_url=login_url)
-
+    
     return render_template('welcome.html', user=name)
 
 @app.route('/welcome', methods=['GET'])
+@login
 def welcome():
-    access_token = request.args.get("access_token", None)
-    if access_token is None and 'access_token' not in session:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)     
-    elif access_token is None:
-        access_token = session['access_token']
-    else:
-        session['access_token'] = access_token
-    try:
-      
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    # return name
-
+    name = steemconnect.me()["name"]
     return render_template('welcome.html', user=name)
 
 @app.route('/show_rules', methods=['GET'])
+@login
 def show_rules():
-    access_token = request.args.get("access_token", None)
-    if access_token is None and 'access_token' not in session:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)     
-    elif access_token is None:
-        access_token = session['access_token']
-    else:
-        session['access_token'] = access_token
-    try:
-      
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    # return name
+    name = steemconnect.me()["name"]
     try:
         rules = voteRulesTrx.get_posts(name)
     except:
@@ -472,27 +441,9 @@ def show_rules():
     return render_template('show_rules.html', table=table, user=name)    
 
 @app.route('/show_trail_rules', methods=['GET'])
+@login
 def show_trail_rules():
-    access_token = request.args.get("access_token", None)
-    if access_token is None and 'access_token' not in session:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)     
-    elif access_token is None:
-        access_token = session['access_token']
-    else:
-        session['access_token'] = access_token
-    try:
-      
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    # return name
+    name = steemconnect.me()["name"]
     try:
         rules = trailVoteRulesTrx.get_rules_by_account(name)
     except:
@@ -504,27 +455,9 @@ def show_trail_rules():
     return render_template('show_trail_rules.html', table=table, user=name)
 
 @app.route('/show_vote_log', methods=['GET'])
+@login
 def show_vote_log():
-    access_token = request.args.get("access_token", None)
-    if access_token is None and 'access_token' not in session:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)     
-    elif access_token is None:
-        access_token = session['access_token']
-    else:
-        session['access_token'] = access_token
-    try:
-      
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    # return name
+    name = steemconnect.me()["name"]
     try:
         logs = voteLogTrx.get_votes(name)
     except:
@@ -537,27 +470,9 @@ def show_vote_log():
 
 
 @app.route('/show_failed_vote_log', methods=['GET'])
+@login
 def show_failed_vote_log():
-    access_token = request.args.get("access_token", None)
-    if access_token is None and 'access_token' not in session:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)     
-    elif access_token is None:
-        access_token = session['access_token']
-    else:
-        session['access_token'] = access_token
-    try:
-      
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    # return name
+    name = steemconnect.me()["name"]
     try:
         logs = failedVoteLogTrx.get_votes(name)
     except:
@@ -569,27 +484,9 @@ def show_failed_vote_log():
     return render_template('failed_votes_log.html', table=table, user=name)
 
 @app.route('/show_pending_votes', methods=['GET'])
+@login
 def show_pending_votes():
-    access_token = request.args.get("access_token", None)
-    if access_token is None and 'access_token' not in session:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)     
-    elif access_token is None:
-        access_token = session['access_token']
-    else:
-        session['access_token'] = access_token
-    try:
-      
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
-    # return name
+    name = steemconnect.me()["name"]
     try:
         votes = pendingVotesTrx.get_votes(name)
     except:
@@ -601,23 +498,11 @@ def show_pending_votes():
     return render_template('pending_votes.html', table=table, user=name)
 
 @app.route('/<community>/<author>/<permlink>', methods=['GET', 'POST'])
+@login
 def delayed_vote_link(community, author, permlink):
+    name = steemconnect.me()["name"]
     authorperm = author + '/' +permlink
-    access_token = request.args.get("access_token", None)
- 
-    # access_token = session['access_token']
-    try:
-        if access_token is None:
-            access_token = session['access_token']           
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)  
     form = VoteForm(request.form)
-
     if request.method == 'POST': # and form.validate():
         # save the rule
 
@@ -648,24 +533,12 @@ def delayed_vote_link(community, author, permlink):
     return render_template('delayed_vote.html', form=form, user=name)        
 
 @app.route('/delayed_vote', methods=['GET', 'POST'])
+@login
 def delayed_vote():
     """
     Add a new rule
     """
-    
-    access_token = request.args.get("access_token", None)
- 
-    # access_token = session['access_token']
-    try:
-        if access_token is None:
-            access_token = session['access_token']           
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)  
+    name = steemconnect.me()["name"]
     form = VoteForm(request.form)
 
     if request.method == 'POST': # and form.validate():
@@ -698,24 +571,13 @@ def delayed_vote():
 
 
 @app.route('/settings', methods=['GET', 'POST'])
+@login
 def settings():
     """
     Add a new rule
     """
     
-    access_token = request.args.get("access_token", None)
- 
-    # access_token = session['access_token']
-    try:
-        if access_token is None:
-            access_token = session['access_token']           
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)  
+    name = steemconnect.me()["name"]
     form = SettingsForm(request.form)
     setting = None
     try:
@@ -744,24 +606,12 @@ def settings():
 
 
 @app.route('/new_trail_rule', methods=['GET', 'POST'])
+@login
 def new_trail_rule():
     """
     Add a new rule
     """
-    
-    access_token = request.args.get("access_token", None)
- 
-    # access_token = session['access_token']
-    try:
-        if access_token is None:
-            access_token = session['access_token']           
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)  
+    name = steemconnect.me()["name"]
     form = TrailRuleForm(request.form)
 
     if request.method == 'POST': # and form.validate():
@@ -780,24 +630,12 @@ def new_trail_rule():
 
 
 @app.route('/new_rule', methods=['GET', 'POST'])
+@login
 def new_rule():
     """
     Add a new rule
     """
-    
-    access_token = request.args.get("access_token", None)
- 
-    # access_token = session['access_token']
-    try:
-        if access_token is None:
-            access_token = session['access_token']           
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)  
+    name = steemconnect.me()["name"]
     form = RuleForm(request.form)
 
     if request.method == 'POST': # and form.validate():
@@ -815,19 +653,12 @@ def new_rule():
     return render_template('new_rule.html', form=form, user=name)
 
 @app.route('/edit_rule', methods=['GET', 'POST'])
+@login
 def edit_rule():
-    access_token = session['access_token']
+    name = steemconnect.me()["name"]
     # access_token = request.args.get("access_token", None)
     author = request.args.get("author", None)
     main_post = request.args.get("main_post", None)
-    try:
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
     try:
         rule = voteRulesTrx.get(name, author, main_post)
     except:
@@ -845,19 +676,11 @@ def edit_rule():
         return render_template('edit_rule.html', form=form, user=name)
 
 @app.route('/delete_rule', methods=['GET', 'POST'])
+@login
 def delete_rule():
-    access_token = session['access_token']
-    # access_token = request.args.get("access_token", None)
+    name = steemconnect.me()["name"]
     author = request.args.get("author", None)
     main_post = request.args.get("main_post", None)
-    try:
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
     try:
         rule = voteRulesTrx.get(name, author, main_post)
     except:
@@ -874,18 +697,10 @@ def delete_rule():
         return render_template('delete_rule.html', form=form, user=name)
 
 @app.route('/edit_trail_rule', methods=['GET', 'POST'])
+@login
 def edit_trail_rule():
-    access_token = session['access_token']
-    # access_token = request.args.get("access_token", None)
+    name = steemconnect.me()["name"]
     voter_to_follow = request.args.get("voter_to_follow", None)
-    try:
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
     try:
         rule = trailVoteRulesTrx.get(voter_to_follow, name)
     except:
@@ -903,18 +718,10 @@ def edit_trail_rule():
         return render_template('edit_trail_rule.html', form=form, user=name)
 
 @app.route('/delete_trail_rule', methods=['GET', 'POST'])
+@login
 def delete_trail_rule():
-    access_token = session['access_token']
-    # access_token = request.args.get("access_token", None)
+    name = steemconnect.me()["name"]
     voter_to_follow = request.args.get("voter_to_follow", None)
-    try:
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
     try:
         rule = trailVoteRulesTrx.get(voter_to_follow, name)
     except:
@@ -932,19 +739,11 @@ def delete_trail_rule():
 
 
 @app.route('/delete_vote', methods=['GET', 'POST'])
+@login
 def delete_vote():
-    access_token = session['access_token']
-    # access_token = request.args.get("access_token", None)
+    name = steemconnect.me()["name"]
     authorperm = request.args.get("authorperm", None)
     vote_when_vp_reached = request.args.get("vote_when_vp_reached", None)
-    try:
-        steemconnect.set_access_token(access_token)
-        name = steemconnect.me()["name"]
-    except:
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )        
-        return render_template('please_login.html', login_url=login_url)
     try:
         pendingVotesTrx.delete(authorperm, name, vote_when_vp_reached)
     except:
