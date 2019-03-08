@@ -108,7 +108,8 @@ if __name__ == "__main__":
                 continue
             if not tags_excluded(rule["exclude_tags"], post["tags"]):
                 continue
-
+            if rule["only_main_post"] and post.is_comment():
+                continue
             if rule["exclude_declined_payout"] and int(post["max_accepted_payout"]) == 0:
                 continue
   

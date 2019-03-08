@@ -47,6 +47,18 @@ class Testcases(unittest.TestCase):
         self.assertEqual(ret["vote_delay_min"], 15)
         self.assertEqual(ret["vote_sbd"], 0.01)
         self.assertEqual(ret["tip_sbd"], 0.01)
+
+        ret = parse_command("$rewarding 10% 2days", stm)
+        self.assertEqual(ret["vote_delay_min"], 2 * 24 * 60)
+        self.assertEqual(ret["vote_percentage"], 10)
+
+        ret = parse_command("$rewarding 10% 2hours", stm)
+        self.assertEqual(ret["vote_delay_min"], 2 * 60)
+        self.assertEqual(ret["vote_percentage"], 10)
+
+        ret = parse_command("$rewarding 10% 60seconds", stm)
+        self.assertEqual(ret["vote_delay_min"], 1)
+        self.assertEqual(ret["vote_percentage"], 10)
         
     def test_vote_command(self):
         stm = Steem()

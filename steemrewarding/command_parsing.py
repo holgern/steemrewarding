@@ -128,8 +128,19 @@ def parse_command(command, stm):
             vote_delay_min = float(number[-1])
             symbols.append(arg)
             del number[-1]
-        elif arg in ["day", "days"] and len(number) > 0:
+        elif arg in ["day", "days", "d"] and len(number) > 0:
             bounty_delay_days = float(number[-1])
+            vote_delay_min = float(number[-1]) * 24 * 60
+            symbols.append(arg)
+            del number[-1]
+        elif arg in ["h", "hours", "hour"] and len(number) > 0:
+            bounty_delay_days = float(number[-1])
+            vote_delay_min = float(number[-1]) * 60
+            symbols.append(arg)
+            del number[-1]            
+        elif arg in ["sec", "second", "seconds"] and len(number) > 0:
+            bounty_delay_days = float(number[-1])
+            vote_delay_min = float(number[-1]) / 60
             symbols.append(arg)
             del number[-1]
         elif arg.find('%') > -1 and arg.find('@') == -1:

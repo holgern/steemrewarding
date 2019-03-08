@@ -124,7 +124,7 @@ class VoteRulesTrx(object):
     def get_posts(self, voter):
         table = self.db[self.__tablename__]
         data = [] 
-        for v in table.find(voter=voter):
+        for v in table.find(voter=voter, order_by='author'):
             data.append(v)
         return data
 

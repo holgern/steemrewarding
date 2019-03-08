@@ -81,12 +81,7 @@ steemconnect = SteemConnect(client_id="beem.app", scope="login", get_refresh_tok
 
 # print(config_data)
 databaseConnector = config_data["databaseConnector"]
-db = dataset.connect(databaseConnector)
-voteRulesTrx = VoteRulesTrx(db)
-voteLogTrx = VoteLogTrx(db)
-failedVoteLogTrx = FailedVoteLogTrx(db)
-pendingVotesTrx = PendingVotesTrx(db)
-accountsTrx = AccountsDB(db)
+
 
 def valid_age(post, hours=156):
     """
@@ -128,6 +123,7 @@ class Results(Table):
 
 
 class TrailResults(Table):
+
     voter_to_follow = Col('voter to follow')
     # account = Col('account')
     enabled = Col('enabled')
@@ -187,64 +183,71 @@ class VoteForm(FlaskForm):
     authorperm = TextAreaField('authorperm')
     vote_delay_min = FloatField('vote_delay_min', default=15.0)
     vote_weight = FloatField('vote_weight', default=100.0)
+    vote_when_vp_reached = BooleanField('vote_when_vp_reached (When true, posts/comments are upvoted when min_vp is reached)')
+    min_vp = FloatField('min_vp [%] - minimum vote power', default=70.0)
+    vp_scaler = FloatField('vp_scaler [0-1] (When greater than 0, it can be used to adapt the vote weight to the vote power. vote weight = 100 - ((100-vp) *vp_scaler)).)', default=0.0)
+    leave_comment = BooleanField('leave_comment (When true, a comment whith the text defined in settings is broadcasted)')
+    vp_reached_order = IntegerField('vp_reached_order (defines the vote order for vote_when_vp_reached=True, 1 goes first)', default=1)
+    max_net_votes = IntegerField('max_net_votes', default=-1)
+    max_pending_payout = FloatField('max_pending_payout', default=-1.0) 
 
 class RuleForm(FlaskForm):
 
     author = StringField('author (must not be empty!)')
-    main_post = BooleanField('main_post', default=True)
-    vote_delay_min = FloatField('vote_delay_min', default=15.0)
-    vote_weight = FloatField('vote_weight', default=100.0)
+    main_post = BooleanField('main_post (When True, only posts will be upvoted)', default=True)
+    vote_delay_min = FloatField('vote_delay_min [minutes]', default=15.0)
+    vote_weight = FloatField('vote_weight [%]', default=100.0)
     
     enabled = BooleanField('enabled', default=True)
     
-    include_tags = TextAreaField('include_tags')
-    exclude_tags = TextAreaField('exclude_tags')
+    include_tags = TextAreaField('include_tags (when set, only posts with any of the given tags will be upvoted. Seperate tags with ,)')
+    exclude_tags = TextAreaField('exclude_tags (when set, posts with any of the given tags will not be upvoted. use comma for seperation.')
     
-    vote_sbd = FloatField('vote_sbd', default=0.0)
+    vote_sbd = FloatField('vote_sbd [$] (When vote_weight is zero, the vote weight is calculated based on the given amount)', default=0.0)
     max_votes_per_day = IntegerField('max_votes_per_day', default=-1)
     max_votes_per_week = IntegerField('max_votes_per_week', default=-1)
-    vote_when_vp_reached = BooleanField('vote_when_vp_reached')
-    min_vp = FloatField('min_vp', default=90.0)
-    vp_scaler = FloatField('vp_scaler', default=0.0)
-    leave_comment = BooleanField('leave_comment')
+    vote_when_vp_reached = BooleanField('vote_when_vp_reached (When true, posts/comments are upvoted when min_vp is reached)')
+    min_vp = FloatField('min_vp [%] - minimum vote power', default=90.0)
+    vp_scaler = FloatField('vp_scaler [0-1] (When greater than 0, it can be used to adapt the vote weight to the vote power. vote weight = 100 - ((100-vp) *vp_scaler)).)', default=0.0)
+    leave_comment = BooleanField('leave_comment (When true, a comment whith the text defined in settings is broadcasted)')
     minimum_word_count = IntegerField('minimum_word_count', default=0)
-    include_apps = TextAreaField('include_apps')
-    exclude_apps = TextAreaField('exclude_apps')
+    include_apps = TextAreaField('include_apps (When set, only posts/comments which were created by any of the given apps are upvoted)')
+    exclude_apps = TextAreaField('exclude_apps (When set, posts/comments which were created by any of the given apps are not upvoted)')
     exclude_declined_payout = BooleanField('exclude_declined_payout', default=True)
-    vp_reached_order = IntegerField('vp_reached_order', default=1)
+    vp_reached_order = IntegerField('vp_reached_order (defines the vote order for vote_when_vp_reached=True, 1 goes first)', default=1)
     max_net_votes = IntegerField('max_net_votes', default=-1)
     max_pending_payout = FloatField('max_pending_payout', default=-1.0)
     
-    include_text = TextAreaField('include_text')
-    exclude_text = TextAreaField('exclude_text')
+    include_text = TextAreaField('include_text (When set, only posts/comments containing the given string are upvoted)')
+    exclude_text = TextAreaField('exclude_text (When set, posts/comments containing the given string are not upvoted)')
 
 
 class TrailRuleForm(FlaskForm):
 
     voter_to_follow = StringField('vote to follow (must not be empty!)')
     # account = StringField("StringField")
-    only_main_post = BooleanField('only_main_post', default=True)
-    vote_weight_treshold = FloatField('vote_weight_treshold (skip votes with lower weight)', default=0.0)
+    only_main_post = BooleanField('only_main_post (When True, only posts will be upvoted)', default=True)
+    vote_weight_treshold = FloatField('vote_weight_treshold - skip votes with lower weight', default=0.0)
     
-    vote_weight_scaler = FloatField('vote_weight_scaler', default=50.0)
-    vote_weight_offset = FloatField('vote_weight_offset', default=0.0)
+    vote_weight_scaler = FloatField('vote_weight_scaler [%] - set the vote weight percentage in comparison to the vote to follow.', default=50.0)
+    vote_weight_offset = FloatField('vote_weight_offset [%] - is added after applying vote_weight_scaler.', default=0.0)
 
     enabled = BooleanField('enabled', default=True)
     
-    minimum_vote_delay_min = FloatField('minimum_vote_delay_min (vote is delayed when earlier)', default=13.0)
-    maximum_vote_delay_min = FloatField('maximum_vote_delay_min (vote is skipped when older)', default=9360.0)    
+    minimum_vote_delay_min = FloatField('minimum_vote_delay_min [minutes] - vote is delayed when earlier', default=13.0)
+    maximum_vote_delay_min = FloatField('maximum_vote_delay_min [minutes] - vote is skipped when older', default=9360.0)    
     
-    include_authors = TextAreaField('include_authors')
-    exclude_authors = TextAreaField('exclude_authors')    
+    include_authors = TextAreaField('include_authors - When set, only the given authors will be uvpoted. Use comma for seperation.')
+    exclude_authors = TextAreaField('exclude_authors - When set, given authors will not be upvoted. Use comma for seperation.')    
     
-    include_tags = TextAreaField('include_tags')
-    exclude_tags = TextAreaField('exclude_tags')
+    include_tags = TextAreaField('include_tags - When set, only the given tags will be uvpoted. Use comma for seperation.')
+    exclude_tags = TextAreaField('exclude_tags - When set, given tags will not be upvoted. Use comma for seperation.')
     
     max_votes_per_day = IntegerField('max_votes_per_day', default=-1)
     max_votes_per_week = IntegerField('max_votes_per_week', default=-1)
 
-    min_vp = FloatField('min_vp', default=90.0)
-    vp_scaler = FloatField('vp_scaler', default=0.0)
+    min_vp = FloatField('min_vp [%] - minimum vote power', default=90.0)
+    vp_scaler = FloatField('vp_scaler  [0-1] - When greater than 0, it can be used to adapt the vote weight to the vote power. vote weight = 100 - ((100-vp) *vp_scaler)).', default=0.0)
     
     exclude_declined_payout = BooleanField('exclude_declined_payout', default=True)
     max_net_votes = IntegerField('max_net_votes', default=-1)
@@ -431,10 +434,12 @@ def welcome():
 @login
 def show_rules():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)
     try:
         rules = voteRulesTrx.get_posts(name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteRulesTrx = VoteRulesTrx(db)
         rules = voteRulesTrx.get_posts(name)
     table = Results(rules)
@@ -445,24 +450,32 @@ def show_rules():
 @login
 def show_trail_rules():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)
+ 
     try:
         rules = trailVoteRulesTrx.get_rules_by_account(name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         trailVoteRulesTrx = TrailVoteRulesTrx(db)
         rules = trailVoteRulesTrx.get_rules_by_account(name)
     table = TrailResults(rules)
     table.border = True
+    table.table_id = "rules"
+    table.classes  = ["display"] 
     return render_template('show_trail_rules.html', table=table, user=name)
 
 @app.route('/show_vote_log', methods=['GET'])
 @login
 def show_vote_log():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteLogTrx = VoteLogTrx(db)
+  
     try:
         logs = voteLogTrx.get_votes(name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteLogTrx = VoteLogTrx(db)
         logs = voteLogTrx.get_votes(name)
     table = VotesLog(logs)
@@ -474,10 +487,13 @@ def show_vote_log():
 @login
 def show_failed_vote_log():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    failedVoteLogTrx = FailedVoteLogTrx(db)
+   
     try:
         logs = failedVoteLogTrx.get_votes(name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         failedVoteLogTrx = FailedVoteLogTrx(db)
         logs = failedVoteLogTrx.get_votes(name)
     table = FailedVotesLog(logs)
@@ -488,10 +504,12 @@ def show_failed_vote_log():
 @login
 def show_pending_votes():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    pendingVotesTrx = PendingVotesTrx(db)
     try:
         votes = pendingVotesTrx.get_votes(name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         pendingVotesTrx = PendingVotesTrx(db)
         votes = pendingVotesTrx.get_votes(name)
     table = PendingVotes(votes)
@@ -502,6 +520,8 @@ def show_pending_votes():
 @login
 def delayed_vote_link(community, author, permlink):
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    pendingVotesTrx = PendingVotesTrx(db)
     authorperm = author + '/' +permlink
     form = VoteForm(request.form)
     if request.method == 'POST': # and form.validate():
@@ -523,7 +543,7 @@ def delayed_vote_link(community, author, permlink):
         try:
             pendingVotesTrx.add(vote_dict)
         except:
-            db = dataset.connect(databaseConnector)
+            db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
             pendingVotesTrx = PendingVotesTrx(db)        
             pendingVotesTrx.add(vote_dict)
         flash('Rule created successfully!')
@@ -540,6 +560,8 @@ def delayed_vote():
     Add a new rule
     """
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    pendingVotesTrx = PendingVotesTrx(db)
     form = VoteForm(request.form)
 
     if request.method == 'POST': # and form.validate():
@@ -562,7 +584,7 @@ def delayed_vote():
         try:
             pendingVotesTrx.add(vote_dict)
         except:
-            db = dataset.connect(databaseConnector)
+            db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
             pendingVotesTrx = PendingVotesTrx(db)        
             pendingVotesTrx.add(vote_dict)
         flash('Rule created successfully!')
@@ -579,14 +601,17 @@ def settings():
     """
     
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    accountsTrx = AccountsDB(db)    
     form = SettingsForm(request.form)
     setting = None
     try:
         setting = accountsTrx.get(name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         accountsTrx = AccountsDB(db)    
         setting = accountsTrx.get(name)
+        
     if request.method == 'POST': # and form.validate():
         # save the rule
 
@@ -595,10 +620,11 @@ def settings():
         try:
             accountsTrx.upsert(vote_dict)
         except:
-            db = dataset.connect(databaseConnector)
+            db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
             accountsTrx = AccountsDB(db)        
             accountsTrx.upsert(settings_dict)
         flash('Settings stored successfully!')
+        
         return redirect('/welcome')
     else:
         if setting:
@@ -613,6 +639,8 @@ def new_trail_rule():
     Add a new rule
     """
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)
     form = TrailRuleForm(request.form)
 
     if request.method == 'POST': # and form.validate():
@@ -621,7 +649,7 @@ def new_trail_rule():
         try:
             trailVoteRulesTrx.add(rule_dict)
         except:
-            db = dataset.connect(databaseConnector)
+            db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
             trailVoteRulesTrx = TrailVoteRulesTrx(db)
             trailVoteRulesTrx.add(rule_dict)        
         flash('Trail Rule created successfully!')
@@ -637,6 +665,8 @@ def new_rule():
     Add a new rule
     """
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)    
     form = RuleForm(request.form)
 
     if request.method == 'POST': # and form.validate():
@@ -645,7 +675,7 @@ def new_rule():
         try:
             voteRulesTrx.add(rule_dict)
         except:
-            db = dataset.connect(databaseConnector)
+            db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
             voteRulesTrx = VoteRulesTrx(db)
             voteRulesTrx.add(rule_dict)        
         flash('Rule created successfully!')
@@ -657,13 +687,15 @@ def new_rule():
 @login
 def edit_rule():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)     
     # access_token = request.args.get("access_token", None)
     author = request.args.get("author", None)
     main_post = request.args.get("main_post", None)
     try:
         rule = voteRulesTrx.get(name, author, main_post)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteRulesTrx = VoteRulesTrx(db)    
         rule = voteRulesTrx.get(name, author, main_post)
     if rule:
@@ -680,12 +712,14 @@ def edit_rule():
 @login
 def delete_rule():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)    
     author = request.args.get("author", None)
     main_post = request.args.get("main_post", None)
     try:
         rule = voteRulesTrx.get(name, author, main_post)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteRulesTrx = VoteRulesTrx(db)    
         rule = voteRulesTrx.get(name, author, main_post)
     if rule:
@@ -701,11 +735,13 @@ def delete_rule():
 @login
 def edit_trail_rule():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)    
     voter_to_follow = request.args.get("voter_to_follow", None)
     try:
         rule = trailVoteRulesTrx.get(voter_to_follow, name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         trailVoteRulesTrx = TrailVoteRulesTrx(db)    
         rule = trailVoteRulesTrx.get(voter_to_follow, name)
     if rule:
@@ -722,11 +758,13 @@ def edit_trail_rule():
 @login
 def delete_trail_rule():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)    
     voter_to_follow = request.args.get("voter_to_follow", None)
     try:
         rule = trailVoteRulesTrx.get(voter_to_follow, name)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         trailVoteRulesTrx = TrailVoteRulesTrx(db)
         rule = trailVoteRulesTrx.get(voter_to_follow, name)
     if rule:
@@ -743,12 +781,14 @@ def delete_trail_rule():
 @login
 def delete_vote():
     name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    pendingVotesTrx = PendingVotesTrx(db)    
     authorperm = request.args.get("authorperm", None)
     vote_when_vp_reached = request.args.get("vote_when_vp_reached", None)
     try:
         pendingVotesTrx.delete(authorperm, name, vote_when_vp_reached)
     except:
-        db = dataset.connect(databaseConnector)
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         pendingVotesTrx = PendingVotesTrx(db)    
         pendingVotesTrx.delete(authorperm, name, vote_when_vp_reached)
 

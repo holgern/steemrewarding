@@ -94,7 +94,7 @@ if __name__ == "__main__":
         node_list.remove("https://api.steemit.com")    
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     
-    b = Blockchain(steem_instance = stm)
+    b = Blockchain(mode="head", steem_instance = stm)
     print("deleting old posts and votes")
     postTrx.delete_old_posts(6)
     voteTrx.delete_old_votes(6)
@@ -181,18 +181,29 @@ if __name__ == "__main__":
                 json_metadata = json.loads(json_metadata)
             if "app" in json_metadata:
                 app = json_metadata["app"]
+                if isinstance(app, dict) and "name" in app:
+                    app = app["name"]
+                elif isinstance(app, dict):
+                    app = ""
             word_count = len(tokenizer.tokenize(c.body))
             net_votes = len(c["active_votes"])
             vote_rshares = 0
             for v in c["active_votes"]:
                 vote_rshares += int(v["rshares"])
+            tags = ""
+            for t in c["tags"]:
+                if t is not None and len(tags) == 0:
+                    tags = t
+                elif t is not None and len(tags) > 0:
+                    tags += "," + t
             posts_dict[authorperm] = {"authorperm": authorperm, "author": ops["author"], "created": dt_created, "block": ops["block_num"],
-                                      "main_post": main_post, "tags": ",".join(c["tags"]), "app": app, "decline_payout": int(c["max_accepted_payout"]) == 0,
+                                      "main_post": main_post, "tags": tags, "app": app, "decline_payout": int(c["max_accepted_payout"]) == 0,
                                       "word_count": word_count, "net_votes": net_votes, "vote_rshares": vote_rshares, "pending_payout_value": float(c["pending_payout_value"]),
                                       "update": datetime.utcnow()}
         
         if len(posts_dict) > 0:
             start_time = time.time()
+            #print(posts_dict)
             postTrx.add_batch(posts_dict)
             print("Adding %d post took %.2f seconds" % (len(posts_dict), time.time() - start_time))
             posts_dict = {}

@@ -10,7 +10,7 @@ Group = root
 WorkingDirectory = /opt/rewarding
 ExecStartPre = /bin/mkdir /run/rewarding
 ExecStartPre = /bin/chown -R rewarding:rewarding /run/rewarding
-ExecStart = /usr/bin/env gunicorn --certfile /etc/letsencrypt/live/steemrewarding.com/fullchain.pem --keyfile /etc/letsencrypt/live/steemrewarding.com/privkey.pem app:app -b 0.0.0.0:5000 --pid /run/rewarding/rewarding.pid
+ExecStart = /usr/bin/env gunicorn --certfile /etc/letsencrypt/live/steemrewarding.com/fullchain.pem --keyfile /etc/letsencrypt/live/steemrewarding.com/privkey.pem --workers=3 app:app -b 0.0.0.0:5000 --pid /run/rewarding/rewarding.pid
 ExecReload = /bin/kill -s HUP $MAINPID
 ExecStop = /bin/kill -s TERM $MAINPID
 ExecStopPost = /bin/rm -rf /run/rewarding
