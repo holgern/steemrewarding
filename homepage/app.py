@@ -97,6 +97,7 @@ class Results(Table):
     author = Col('author')
     main_post = Col('main post')
     vote_delay_min = Col('Vote delay min')
+    maximum_vote_delay_min = Col('max vote delay min')
     include_tags = Col('include tags')
     exclude_tags = Col('exclude tags')
     vote_weight = Col('vote weight')
@@ -183,8 +184,9 @@ class VoteForm(FlaskForm):
     authorperm = TextAreaField('authorperm')
     vote_delay_min = FloatField('vote_delay_min', default=15.0)
     vote_weight = FloatField('vote_weight', default=100.0)
-    vote_when_vp_reached = BooleanField('vote_when_vp_reached (When true, posts/comments are upvoted when min_vp is reached)')
-    min_vp = FloatField('min_vp [%] - minimum vote power', default=70.0)
+    vote_when_vp_reached = BooleanField('vote_when_vp_reached (When true, posts/comments are upvoted when min_vp is reached)', default=True)
+    min_vp = FloatField('min_vp [%] - minimum vote power', default=50.0)
+    vote_sbd = FloatField('vote_sbd [$] (When vote_weight is zero, the vote weight is calculated based on the given amount)', default=0.0)
     vp_scaler = FloatField('vp_scaler [0-1] (When greater than 0, it can be used to adapt the vote weight to the vote power. vote weight = 100 - ((100-vp) *vp_scaler)).)', default=0.0)
     leave_comment = BooleanField('leave_comment (When true, a comment whith the text defined in settings is broadcasted)')
     vp_reached_order = IntegerField('vp_reached_order (defines the vote order for vote_when_vp_reached=True, 1 goes first)', default=1)
@@ -196,6 +198,7 @@ class RuleForm(FlaskForm):
     author = StringField('author (must not be empty!)')
     main_post = BooleanField('main_post (When True, only posts will be upvoted)', default=True)
     vote_delay_min = FloatField('vote_delay_min [minutes]', default=15.0)
+    maximum_vote_delay_min = FloatField('maximum_vote_delay_min [minutes] - vote is skipped when older', default=9360.0)
     vote_weight = FloatField('vote_weight [%]', default=100.0)
     
     enabled = BooleanField('enabled', default=True)
@@ -259,6 +262,7 @@ class PendingVotes(Table):
     vote_weight = Col('vote weight')
     comment_timestamp = Col('comment timestamp')
     vote_delay_min = Col('vote delay min')
+    maximum_vote_delay_min = Col('max vote delay min')
     created = Col('created')
     min_vp = Col('min vp')
     vote_when_vp_reached = Col('vote when vp reached')
@@ -330,6 +334,7 @@ def rule_dict_from_form(voter, form):
     rule = {"voter": voter, "author": form.author.data, "main_post": form.main_post.data,
             "vote_delay_min": form.vote_delay_min.data, "include_tags": form.include_tags.data,
             "exclude_tags": form.exclude_tags.data, "vote_weight": form.vote_weight.data,
+            "maximum_vote_delay_min": form.maximum_vote_delay_min.data,
             "enabled": form.enabled.data, "vote_sbd": form.vote_sbd.data, "max_votes_per_day": form.max_votes_per_day.data,
             "max_votes_per_week": form.max_votes_per_week.data, "vote_when_vp_reached": form.vote_when_vp_reached.data,
             "min_vp": form.min_vp.data, "vp_scaler": form.vp_scaler.data, "leave_comment": form.leave_comment.data,
@@ -367,7 +372,9 @@ def vote_dict_from_form(voter, form):
     authorperm = construct_authorperm(author, permlink)
 
     vote = {"voter": voter, "authorperm": authorperm, "vote_delay_min": form.vote_delay_min.data, 
-            "vote_weight": form.vote_weight.data}
+            "vote_weight": form.vote_weight.data, "min_vp": form.min_vp.data, "vote_sbd": form.vote_sbd.data,
+            "vote_when_vp_reached": form.vote_when_vp_reached.data, "vp_reached_order": form.vp_reached_order.data,
+            }
     return vote
 
 def settings_dict_from_form(account, form):
@@ -409,7 +416,12 @@ def login(func):
 @login
 def main():
     name = steemconnect.me()["name"]
-    return render_template('welcome.html', user=name, rewardingversion=rewardingversion)
+    acc = Account(name)
+    posting_auth = False
+    for a in acc["posting"]["account_auths"]:
+        if a[0] == "rewarding":
+            posting_auth = True     
+    return render_template('welcome.html', user=name, votepower=round(acc.vp, 2), recharged=acc.get_recharge_time_str(), post_auth=posting_auth, rewardingversion=rewardingversion)
 
 @app.route('/logout')
 def logout():
@@ -428,7 +440,13 @@ def logout():
 @login
 def welcome():
     name = steemconnect.me()["name"]
-    return render_template('welcome.html', user=name, rewardingversion=rewardingversion)
+    acc = Account(name)
+    posting_auth = False
+    for a in acc["posting"]["account_auths"]:
+        if a[0] == "rewarding":
+            posting_auth = True    
+    
+    return render_template('welcome.html', user=name, votepower=round(acc.vp, 2), recharged=acc.get_recharge_time_str(), post_auth=posting_auth, rewardingversion=rewardingversion)
 
 @app.route('/show_rules', methods=['GET'])
 @login
@@ -537,8 +555,6 @@ def delayed_vote_link(community, author, permlink):
         except:
             return "Wrong authoerperm!"        
         vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
-        vote_dict["min_vp"] = 10
-        vote_dict["vote_when_vp_reached"] = True
         vote_dict["exclude_declined_payout"] = False
         try:
             pendingVotesTrx.add(vote_dict)
@@ -578,8 +594,6 @@ def delayed_vote():
             return "Wrong authorperm!"
         
         vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
-        vote_dict["min_vp"] = 10
-        vote_dict["vote_when_vp_reached"] = True
         vote_dict["exclude_declined_payout"] = False
         try:
             pendingVotesTrx.add(vote_dict)

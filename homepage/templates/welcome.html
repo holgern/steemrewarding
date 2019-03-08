@@ -9,11 +9,18 @@
                 <div class="card">
                   <div class="card-header">
                     <h3 class="card-title text-center">Welcome {{ user }} </h3>
+                    </div>
+                                    <div>
+                <ul>
+                <li> vote power: {{ votepower }} - full in: {{ recharged }}</li>
+                <li> posting authority for rewarding: {{ post_auth }}</li>
+                </ul>
+                </div>
                     
-                  </div>
                   In order to use steemrewarding, you need to give @rewarding the posting authority by <a href="https://steemconnect.com/authorize/@rewarding">https://steemconnect.com/authorize/@rewarding</a>.
                   You can check, if you did here: <a href="https://steemd.com/@{{user}}">https://steemd.com/@{{user}}</a>
                 </div>
+
                 <div class="card">
                 <ul>
                 <li> Delayed Vote: Triggers a delayed vote without a voting rule</li>
