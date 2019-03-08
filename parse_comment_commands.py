@@ -129,11 +129,11 @@ if __name__ == "__main__":
         if not (c.is_pending() and valid_age(c)):
             body = "The reward of this comment goes 100 %% to the author %s. This is done by setting the beneficiaries of this comment to 100 %%.\n\n" % (c["author"])
             comment_beneficiaries = [{"account": c["author"], "weight": 10000}]
-
-            stm.post("rewarding %s" % c["author"], body, author=rewarding_account, reply_identifier=c_comment["authorperm"], beneficiaries=comment_beneficiaries)
+            permlink = derive_permlink("rewarding %s" % c["author"], c_comment["permlink"])
+            stm.post("rewarding %s" % c["author"], body, author=rewarding_account, permlink=permlink, reply_identifier=c_comment["authorperm"], beneficiaries=comment_beneficiaries)
             time.sleep(3)
-            permlink = derive_permlink("rewarding %s" % c["author"], c_comment["parent_permlink"])
-            authorperm = construct_authorperm(rewarding_account, permlink)     
+            
+            authorperm = construct_authorperm(rewarding_account, permlink)
             comment_timestamp = datetime.utcnow()
         else:
             authorperm = c["authorperm"]
