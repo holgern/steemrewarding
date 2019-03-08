@@ -94,6 +94,10 @@ def valid_age(post, hours=156):
 
 
 class Results(Table):
+    edit = LinkCol('Edit', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post'))
+    copy = LinkCol('Copy', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post', copy_rule='main_post'))
+    delete = LinkCol('Delete', 'delete_rule', url_kwargs=dict(author='author', main_post='main_post'))
+    
     author = Col('author')
     main_post = Col('main post')
     vote_delay_min = Col('Vote delay min')
@@ -118,13 +122,15 @@ class Results(Table):
     max_pending_payout = Col('max pending payout')
     include_text = Col('include text')
     exclude_text = Col('exclude text')
-    edit = LinkCol('Edit', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post'))
-    delete = LinkCol('Delete', 'delete_rule', url_kwargs=dict(author='author', main_post='main_post'))
+    # 
+
     # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
 
 
 class TrailResults(Table):
-
+    edit = LinkCol('Edit', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
+    copy = LinkCol('Copy', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow', copy_rule='enabled'))
+    delete = LinkCol('Delete', 'delete_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
     voter_to_follow = Col('voter to follow')
     # account = Col('account')
     enabled = Col('enabled')
@@ -147,8 +153,7 @@ class TrailResults(Table):
     exclude_declined_payout = Col('exclude declined payout')
     max_net_votes = Col('max net votes')
     max_pending_payout = Col('max pending payout')
-    edit = LinkCol('Edit', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
-    delete = LinkCol('Delete', 'delete_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
+
     # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
 
 
@@ -706,6 +711,11 @@ def edit_rule():
     # access_token = request.args.get("access_token", None)
     author = request.args.get("author", None)
     main_post = request.args.get("main_post", None)
+    copy_rule = request.args.get("copy_rule", None)
+    if copy_rule is None or not copy_rule:
+        helptext = "Editing author and/or main_post will delete the original rule and create a new rule with the new author/main_post flag."
+    else:
+        helptext = "Editing author and/or main_post will keep the original rule and create a new rule with the new author/main_post flag."
     try:
         rule = voteRulesTrx.get(name, author, main_post)
     except:
@@ -716,11 +726,16 @@ def edit_rule():
         form = RuleForm(formdata=request.form)
         if request.method == 'POST': # and form.validate():
             rule_dict = rule_dict_from_form(name, form)
-            voteRulesTrx.update(rule_dict)
+            if rule_dict["author"] != author or rule_dict["main_post"] != main_post:
+                if copy_rule is None or not copy_rule:
+                    voteRulesTrx.delete(name, author, main_post)
+                voteRulesTrx.add(rule_dict)
+            else:
+                voteRulesTrx.update(rule_dict)
             return redirect('/show_rules')
         else:
             form = set_form(form, rule)
-        return render_template('edit_rule.html', form=form, user=name)
+        return render_template('edit_rule.html', form=form, helptext=helptext, user=name)
 
 @app.route('/delete_rule', methods=['GET', 'POST'])
 @login
@@ -752,6 +767,12 @@ def edit_trail_rule():
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
     trailVoteRulesTrx = TrailVoteRulesTrx(db)    
     voter_to_follow = request.args.get("voter_to_follow", None)
+    copy_rule = request.args.get("copy_rule", None)
+    if copy_rule is None or not copy_rule:
+        helptext = "Editing voter_to_follow will delete the original rule and create a new rule with the new voter_to_follow."
+    else:
+        helptext = "Editing voter_to_follow will keep the original rule and create a new rule with the new voter_to_follow."
+    
     try:
         rule = trailVoteRulesTrx.get(voter_to_follow, name)
     except:
@@ -762,11 +783,16 @@ def edit_trail_rule():
         form = TrailRuleForm(formdata=request.form)
         if request.method == 'POST': # and form.validate():
             rule_dict = trail_rule_dict_from_form(name, form)
-            trailVoteRulesTrx.update(rule_dict)
+            if rule_dict["voter_to_follow"] != voter_to_follow:
+                if copy_rule is None or not copy_rule:
+                    trailVoteRulesTrx.delete(voter_to_follow, name)
+                trailVoteRulesTrx.add(rule_dict)
+            else:            
+                trailVoteRulesTrx.update(rule_dict)
             return redirect('/show_trail_rules')
         else:
             form = set_form_trail_votes(form, rule)
-        return render_template('edit_trail_rule.html', form=form, user=name)
+        return render_template('edit_trail_rule.html', form=form, helptext=helptext, user=name)
 
 @app.route('/delete_trail_rule', methods=['GET', 'POST'])
 @login
