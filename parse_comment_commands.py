@@ -96,6 +96,9 @@ if __name__ == "__main__":
     for command in commandsTrx.get_command_list(last_command):
         command_string = command["command"]
         last_command = command["created"]
+        # Skip not processed commands that are older than 3 hours
+        if (datetime.utcnow() - command["created"]).total_seconds() / 60 / 60 > 3:
+            continue
         params = parse_command("$rewarding " + command_string, stm)
         vote_delay_min = params["vote_delay_min"]
         vote_weight = params["vote_percentage"]
@@ -110,7 +113,14 @@ if __name__ == "__main__":
         posting_auth = False
         for a in voter_acc["posting"]["account_auths"]:
             if a[0] == "rewarding":
-                posting_auth = True        
+                posting_auth = True
+        
+        already_voted = False
+        for v in c_comment["active_votes"]:
+            if v["voter"] == rewarding_account:
+                already_voted = True
+        if already_voted:
+            continue
         
         if c_comment.is_main_post():
             c = c_comment
@@ -136,12 +146,12 @@ if __name__ == "__main__":
                             "vp_reached_order": 1, "max_net_votes": -1, "max_pending_payout": -1, "exclude_declined_payout": False,
                             "max_votes_per_day": -1, "max_votes_per_week": -1, "vp_scaler": 0, "leave_comment": False}
             pendingVotesTrx.add(pending_vote)
-            pendingVotesTrx.add({"authorperm": c_comment["authorperm"], "voter": "rewarding", "vote_weight": 5, "comment_timestamp": c_comment["created"].replace(tzinfo=None),
+            pendingVotesTrx.add({"authorperm": c_comment["authorperm"], "voter": rewarding_account, "vote_weight": 5, "comment_timestamp": c_comment["created"].replace(tzinfo=None),
                                  "vote_delay_min": 0, "created": datetime.utcnow(), "min_vp": 0, "vote_when_vp_reached": False,
                                  "vp_reached_order": 1, "max_net_votes": -1, "max_pending_payout": -1, "exclude_declined_payout": False,
                                  "max_votes_per_day": -1, "max_votes_per_week": -1, "vp_scaler": 0, "leave_comment": False})
         elif not posting_auth:
-            c_comment.reply("Please give rewarding the posting authory for letting it set beneficaries of your post/comment. https://app.steemconnect.com/authorize/@rewarding", author=account)         
+            c_comment.reply("Please give rewarding the posting authory for letting it upvote on your command. https://app.steemconnect.com/authorize/@rewarding", author=rewarding_account)         
 
     confStorage.update({"last_command": last_command})
     print("command parse script run %.2f s" % (time.time() - start_prep_time))
