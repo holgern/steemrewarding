@@ -30,7 +30,7 @@ from beem.steemconnect import SteemConnect
 from beem.asset import Asset
 from beem.witness import Witness, WitnessesRankedByVote, WitnessesVotedByAccount
 from beem.blockchain import Blockchain
-from beem.utils import formatTimeString, construct_authorperm, formatTimedelta, addTzInfo, resolve_authorperm
+from beem.utils import formatTimeString, construct_authorperm, formatTimedelta, addTzInfo, resolve_authorperm, derive_permlink
 from beem.vote import AccountVotes, ActiveVotes
 from beem import exceptions
 from beem.version import version as __version__
@@ -81,6 +81,7 @@ steemconnect = SteemConnect(client_id="beem.app", scope="login", get_refresh_tok
 
 # print(config_data)
 databaseConnector = config_data["databaseConnector"]
+wallet_password = config_data["wallet_password"]
 
 
 def valid_age(post, hours=156):
@@ -558,8 +559,19 @@ def delayed_vote_link(community, author, permlink):
                 authorperm = authorperm[authorperm.find("@"):]
             c = Comment(authorperm, steem_instance=stm)
         except:
-            return "Wrong authoerperm!"        
-        vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
+            return "Wrong authoerperm!"
+        if not (c.is_pending() and valid_age(c)):
+            stm.unlock(wallet_password)
+            body = "The reward of this comment goes 100 %% to the author %s. This is done by setting the beneficiaries of this comment to 100 %%.\n\n" % (c["author"])
+            comment_beneficiaries = [{"account": c["author"], "weight": 10000}]
+            permlink = derive_permlink("rewarding %s" % c["author"], c["permlink"])
+            stm.post("rewarding %s" % c["author"], body, author="rewarding", permlink=permlink, reply_identifier=c["authorperm"], beneficiaries=comment_beneficiaries)
+            stm.wallet.lock()
+            authorperm = construct_authorperm("rewarding", permlink)
+            vote_dict["comment_timestamp"] = datetime.utcnow()
+            vote_dict["authorperm"] = authorperm
+        else:
+            vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
         vote_dict["exclude_declined_payout"] = False
         try:
             pendingVotesTrx.add(vote_dict)
@@ -597,9 +609,19 @@ def delayed_vote():
             c = Comment(authorperm, steem_instance=stm)
         except:
             return "Wrong authorperm!"
-        
-        vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
-        vote_dict["exclude_declined_payout"] = False
+        if not (c.is_pending() and valid_age(c)):
+            stm.unlock(wallet_password)
+            body = "The reward of this comment goes 100 %% to the author %s. This is done by setting the beneficiaries of this comment to 100 %%.\n\n" % (c["author"])
+            comment_beneficiaries = [{"account": c["author"], "weight": 10000}]
+            permlink = derive_permlink("rewarding %s" % c["author"], c["permlink"])
+            stm.post("rewarding %s" % c["author"], body, author="rewarding", permlink=permlink, reply_identifier=c["authorperm"], beneficiaries=comment_beneficiaries)
+            stm.wallet.lock()
+            authorperm = construct_authorperm("rewarding", permlink)
+            vote_dict["comment_timestamp"] = datetime.utcnow()
+            vote_dict["authorperm"] = authorperm
+        else:        
+            vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
+            vote_dict["exclude_declined_payout"] = False
         try:
             pendingVotesTrx.add(vote_dict)
         except:
