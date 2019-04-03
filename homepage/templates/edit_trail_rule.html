@@ -16,23 +16,32 @@
 <form method=post>
     <dl>
         {{ render_field(form.voter_to_follow) }}
-        {{ render_field(form.enabled) }}
         {{ render_field(form.only_main_post) }}
+        
         {{ render_field(form.vote_weight_treshold) }}
         {{ render_field(form.vote_weight_scaler) }}
         {{ render_field(form.vote_weight_offset) }}
-
+        
+        {{ render_field(form.minimum_vote_delay_min) }}
+        {{ render_field(form.maximum_vote_delay_min) }}
+        
+        {{ render_field(form.enabled) }}
+        
+        {{ render_field(form.max_votes_per_day) }}
+        {{ render_field(form.max_votes_per_week) }}
+        
+        {{ render_field(form.min_vp) }}
+        {{ render_field(form.vp_scaler) }}
+        
+        {{ render_field(form.vote_when_vp_reached) }}
+        {{ render_field(form.vp_reached_order) }}
+        
         {{ render_field(form.include_authors) }}
         {{ render_field(form.exclude_authors) }}
         {{ render_field(form.include_tags) }}
         {{ render_field(form.exclude_tags) }}
 
-        {{ render_field(form.minimum_vote_delay_min) }}
-        {{ render_field(form.maximum_vote_delay_min) }}
-        {{ render_field(form.max_votes_per_day) }}
-        {{ render_field(form.max_votes_per_week) }}
-        {{ render_field(form.min_vp) }}
-        {{ render_field(form.vp_scaler) }}
+
         {{ render_field(form.exclude_declined_payout) }}
         {{ render_field(form.max_net_votes) }}
         {{ render_field(form.max_pending_payout) }}

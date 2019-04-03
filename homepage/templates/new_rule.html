@@ -35,26 +35,34 @@
                     <dt>{{ form.enabled.label }}
     <dd>{{ form.enabled(checked=form.enabled)|safe }}
     </dd>
-        {{ render_field(form.include_tags) }}
-        {{ render_field(form.exclude_tags) }}
+
         {{ render_field(form.vote_sbd) }}
+        
         {{ render_field(form.max_votes_per_day) }}
         {{ render_field(form.max_votes_per_week) }}
-        {{ render_field(form.vote_when_vp_reached) }}
+        
         {{ render_field(form.min_vp) }}
         {{ render_field(form.vp_scaler) }}
-        {{ render_field(form.leave_comment) }}
+        
+        {{ render_field(form.vote_when_vp_reached) }}
+        {{ render_field(form.vp_reached_order) }}
+        
+        {{ render_field(form.include_tags) }}
+        {{ render_field(form.exclude_tags) }}
+        
+        
         {{ render_field(form.minimum_word_count) }}
         {{ render_field(form.include_apps) }}
         {{ render_field(form.exclude_apps) }}
         <dt>{{ form.exclude_declined_payout.label }}
     <dd>{{ form.exclude_declined_payout(checked=form.exclude_declined_payout)|safe }}
     </dd>
-        {{ render_field(form.vp_reached_order) }}
+        
         {{ render_field(form.max_net_votes) }}
         {{ render_field(form.max_pending_payout) }}
         {{ render_field(form.include_text) }}
         {{ render_field(form.exclude_text) }}
+        {{ render_field(form.leave_comment) }}
     </dl>
     <p><input type=submit value=Submit>
 </form>

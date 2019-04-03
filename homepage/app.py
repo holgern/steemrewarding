@@ -111,6 +111,7 @@ class Results(Table):
     max_votes_per_day = Col('max votes per day')
     max_votes_per_week = Col('max votes per week')
     vote_when_vp_reached = Col('vote when vp reached')
+    vp_reached_order = Col('vp reached order')
     min_vp = Col('min vp')
     vp_scaler = Col('vp scaler')
     leave_comment = Col('leave comment')
@@ -118,7 +119,7 @@ class Results(Table):
     include_apps = Col('include apps')
     exclude_apps = Col('exclude apps')
     exclude_declined_payout = Col('exclude declined payout')
-    vp_reached_order = Col('vp reached order')
+    
     max_net_votes = Col('max net votes')
     max_pending_payout = Col('max pending payout')
     include_text = Col('include text')
@@ -139,6 +140,9 @@ class TrailResults(Table):
     vote_weight_treshold = Col('vote weight treshold')
     vote_weight_scaler = Col('vote weight scaler')
     vote_weight_offset = Col('vote weight offset')
+    
+    vote_when_vp_reached = Col('vote when vp reached')
+    vp_reached_order = Col('vp reached order')    
     
     include_authors = Col('include authors')
     exclude_authors = Col('exclude authors')    
@@ -258,6 +262,9 @@ class TrailRuleForm(FlaskForm):
     min_vp = FloatField('min_vp [%] - minimum vote power', default=90.0)
     vp_scaler = FloatField('vp_scaler  [0-1] - When greater than 0, it can be used to adapt the vote weight to the vote power. vote weight = 100 - ((100-vp) *vp_scaler)).', default=0.0)
     
+    vote_when_vp_reached = BooleanField('vote_when_vp_reached (When true, posts/comments are upvoted when min_vp is reached)', default=True)
+    vp_reached_order = IntegerField('vp_reached_order (defines the vote order for vote_when_vp_reached=True, 1 goes first)', default=1)
+    
     exclude_declined_payout = BooleanField('exclude_declined_payout', default=True)
     max_net_votes = IntegerField('max_net_votes', default=-1)
     max_pending_payout = FloatField('max_pending_payout', default=-1.0)
@@ -295,6 +302,7 @@ def set_form(form, rule):
     form.max_votes_per_day.data = rule["max_votes_per_day"]
     form.max_votes_per_week.data = rule["max_votes_per_week"]
     form.vote_when_vp_reached.data = rule["vote_when_vp_reached"]
+    form.vp_reached_order.data = rule["vp_reached_order"]
     form.min_vp.data = rule["min_vp"]
     form.vp_scaler.data = rule["vp_scaler"]
     form.leave_comment.data = rule["leave_comment"]
@@ -302,7 +310,7 @@ def set_form(form, rule):
     form.include_apps.data = rule["include_apps"]
     form.exclude_apps.data = rule["exclude_apps"]
     form.exclude_declined_payout.data = rule["exclude_declined_payout"]
-    form.vp_reached_order.data = rule["vp_reached_order"]
+    
     form.max_net_votes.data = rule["max_net_votes"]
     form.max_pending_payout.data = rule["max_pending_payout"]
     form.include_text.data = rule["include_text"]
@@ -321,6 +329,8 @@ def set_form_trail_votes(form, rule):
     form.vote_weight_offset.data = rule["vote_weight_offset"]
     form.max_votes_per_day.data = rule["max_votes_per_day"]
     form.max_votes_per_week.data = rule["max_votes_per_week"]
+    form.vote_when_vp_reached.data = rule["vote_when_vp_reached"]
+    form.vp_reached_order.data = rule["vp_reached_order"]    
     form.include_tags.data = rule["include_tags"]
     form.exclude_tags.data = rule["exclude_tags"]
     form.exclude_declined_payout.data = rule["exclude_declined_payout"]
@@ -343,10 +353,11 @@ def rule_dict_from_form(voter, form):
             "exclude_tags": form.exclude_tags.data, "vote_weight": form.vote_weight.data,
             "maximum_vote_delay_min": form.maximum_vote_delay_min.data,
             "enabled": form.enabled.data, "vote_sbd": form.vote_sbd.data, "max_votes_per_day": form.max_votes_per_day.data,
-            "max_votes_per_week": form.max_votes_per_week.data, "vote_when_vp_reached": form.vote_when_vp_reached.data,
+            "max_votes_per_week": form.max_votes_per_week.data, 
+            "vote_when_vp_reached": form.vote_when_vp_reached.data, "vp_reached_order": form.vp_reached_order.data, 
             "min_vp": form.min_vp.data, "vp_scaler": form.vp_scaler.data, "leave_comment": form.leave_comment.data,
             "minimum_word_count": form.minimum_word_count.data, "include_apps": form.include_apps.data, "exclude_apps": form.exclude_apps.data,
-            "exclude_declined_payout": form.exclude_declined_payout.data, "vp_reached_order": form.vp_reached_order.data, "max_net_votes": form.max_net_votes.data,
+            "exclude_declined_payout": form.exclude_declined_payout.data, "max_net_votes": form.max_net_votes.data,
             "max_pending_payout": form.max_pending_payout.data, "include_text": form.include_text.data, "exclude_text": form.exclude_text.data}
 
     return rule
@@ -360,6 +371,7 @@ def trail_rule_dict_from_form(account, form):
     rule = {"account": account, "voter_to_follow": form.voter_to_follow.data, "only_main_post": form.only_main_post.data,
             "vote_weight_treshold": form.vote_weight_treshold.data, "include_authors": form.include_authors.data,
             "exclude_authors": form.exclude_authors.data, "min_vp": form.min_vp.data,
+            "vote_when_vp_reached": form.vote_when_vp_reached.data, "vp_reached_order": form.vp_reached_order.data,
             "vote_weight_scaler": form.vote_weight_scaler.data, "vote_weight_offset": form.vote_weight_offset.data, "max_votes_per_day": form.max_votes_per_day.data,
             "max_votes_per_week": form.max_votes_per_week.data, "include_tags": form.include_tags.data,
             "exclude_tags": form.exclude_tags.data, "exclude_declined_payout": form.exclude_declined_payout.data,
