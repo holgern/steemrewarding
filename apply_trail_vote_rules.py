@@ -45,6 +45,7 @@ if __name__ == "__main__":
 
     votesTrx = VotesTrx(db)
     trailVoteRulesTrx = TrailVoteRulesTrx(db)
+    voteRulesTrx = VoteRulesTrx(db)
     confStorage = ConfigurationDB(db)
     pendingVotesTrx = PendingVotesTrx(db)
     
@@ -103,13 +104,18 @@ if __name__ == "__main__":
             if not string_included(rule["include_authors"], post["author"]):
                 continue
             if not string_excluded(rule["exclude_authors"], post["author"]):
-                continue            
+                continue
+
             if not tags_included(rule["include_tags"], post["tags"]):
                 continue
             if not tags_excluded(rule["exclude_tags"], post["tags"]):
                 continue
             if rule["only_main_post"] and post.is_comment():
                 continue
+            if rule["exclude_authors_with_vote_rule"]:
+                vote_rule = voteRulesTrx.get(rule["account"], post["author"], not post.is_comment())
+                if vote_rule is not None and vote_rule["enabled"]:
+                    continue
             if rule["exclude_declined_payout"] and int(post["max_accepted_payout"]) == 0:
                 continue
   

@@ -185,7 +185,8 @@ class TrailResults(Table):
     vp_scaler = Col('vp scaler', allow_sort = False)
     
     vote_when_vp_reached = BoolCol('vote when vp reached', allow_sort = False)
-    vp_reached_order = Col('vp reached order', allow_sort = False)      
+    vp_reached_order = Col('vp reached order', allow_sort = False)
+    exclude_authors_with_vote_rule = BoolCol('exclude authors with vote rule', allow_sort = False)
     
     include_authors = Col('include authors', allow_sort = False)
     exclude_authors = Col('exclude authors', allow_sort = False)    
@@ -301,6 +302,8 @@ class TrailRuleForm(FlaskForm):
     minimum_vote_delay_min = FloatField('minimum_vote_delay_min [minutes] - vote is delayed when earlier', default=13.0)
     maximum_vote_delay_min = FloatField('maximum_vote_delay_min [minutes] - vote is skipped when older', default=9360.0)    
     
+    exclude_authors_with_vote_rule = BooleanField('exclude_authors_with_vote_rule - exclude all authors that have an enabled vote rule', default=False)
+    
     include_authors = TextAreaField('include_authors - When set, only the given authors will be uvpoted. Use comma for seperation.')
     exclude_authors = TextAreaField('exclude_authors - When set, given authors will not be upvoted. Use comma for seperation.')    
     
@@ -381,7 +384,8 @@ def set_form_trail_votes(form, rule):
     form.max_votes_per_day.data = rule["max_votes_per_day"]
     form.max_votes_per_week.data = rule["max_votes_per_week"]
     form.vote_when_vp_reached.data = rule["vote_when_vp_reached"]
-    form.vp_reached_order.data = rule["vp_reached_order"]    
+    form.vp_reached_order.data = rule["vp_reached_order"]
+    form.exclude_authors_with_vote_rule.data = rule["exclude_authors_with_vote_rule"]
     form.include_tags.data = rule["include_tags"]
     form.exclude_tags.data = rule["exclude_tags"]
     form.exclude_declined_payout.data = rule["exclude_declined_payout"]
@@ -426,7 +430,7 @@ def trail_rule_dict_from_form(account, form):
             "vote_weight_scaler": form.vote_weight_scaler.data, "vote_weight_offset": form.vote_weight_offset.data, "max_votes_per_day": form.max_votes_per_day.data,
             "max_votes_per_week": form.max_votes_per_week.data, "include_tags": form.include_tags.data,
             "exclude_tags": form.exclude_tags.data, "exclude_declined_payout": form.exclude_declined_payout.data,
-            "minimum_vote_delay_min": form.minimum_vote_delay_min.data,
+            "minimum_vote_delay_min": form.minimum_vote_delay_min.data, "exclude_authors_with_vote_rule": form.exclude_authors_with_vote_rule.data,
             "maximum_vote_delay_min": form.maximum_vote_delay_min.data, "enabled": form.enabled.data, "max_net_votes": form.max_net_votes.data,
             "max_pending_payout": form.max_pending_payout.data, "vp_scaler": form.vp_scaler.data}
 
