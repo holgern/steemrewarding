@@ -102,6 +102,15 @@ class TrailVoteRulesTrx(object):
                 data.append(v["voter_to_follow"])
         return data
 
+
+    def get_accounts(self):
+        table = self.db[self.__tablename__]
+        data = [] 
+        for v in table.all():
+            if v["account"] not in data:
+                data.append(v["account"])
+        return data
+
     def get(self, voter_to_follow, account):
         table = self.db[self.__tablename__]
         return table.find_one(voter_to_follow=voter_to_follow, account=account)

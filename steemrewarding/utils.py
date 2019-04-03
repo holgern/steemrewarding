@@ -41,7 +41,7 @@ def upvote_comment(c_comment, acc_vote_name, acc_vote_weight):
                 if acc_vote_name == v["voter"]:
                     vote_sucessfull = True
         except:
-            print("retry to vote %s" % c_comment["authorperm"])
+            print("retry to vote %s from %s" % (c_comment["authorperm"], acc_vote_name))
         cnt += 1
     return vote_sucessfull
 

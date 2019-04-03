@@ -286,6 +286,7 @@ def set_form(form, rule):
     form.author.data = rule["author"]
     form.main_post.data = rule["main_post"]
     form.vote_delay_min.data = rule["vote_delay_min"]
+    form.maximum_vote_delay_min.data =rule["maximum_vote_delay_min"]
     form.include_tags.data = rule["include_tags"]
     form.exclude_tags.data = rule["exclude_tags"]
     form.vote_weight.data = rule["vote_weight"]

@@ -97,7 +97,14 @@ if __name__ == "__main__":
         vote_log = voteLogTrx.get_oldest_log()
         if vote_log is not None:
             authorperm = vote_log["authorperm"]
-            c = Comment(authorperm, steem_instance=stm)
+            try:
+                c = Comment(authorperm, steem_instance=stm)
+            except:
+                print("Could not process %s" % authorperm)
+                vote_log["last_update"] = datetime.utcnow()
+                vote_log["performance"] = 0
+                voteLogTrx.update(vote_log)                
+                continue
             try:
                 curation_rewards_SBD = c.get_curation_rewards(pending_payout_SBD=True)
             except:

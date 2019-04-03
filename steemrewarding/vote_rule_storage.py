@@ -101,6 +101,7 @@ class VoteRulesTrx(object):
             if v["author"] not in data:
                 data.append(v["author"])
         return data
+    
 
     def get(self, voter, author, main_post):
         table = self.db[self.__tablename__]
@@ -119,6 +120,14 @@ class VoteRulesTrx(object):
         for v in table.find(main_post=main_post):
             if v["author"] not in data:
                 data.append(v["author"])
+        return data
+
+    def get_voter(self):
+        table = self.db[self.__tablename__]
+        data = [] 
+        for v in table.all():
+            if v["voter"] not in data:
+                data.append(v["voter"])
         return data
 
     def get_posts(self, voter):
