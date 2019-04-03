@@ -178,6 +178,18 @@ a:hover {
   text-decoration: underline;
 }
 
+a.table {
+  color: #00001a;
+  text-decoration: none;
+  background-color: transparent;
+  -webkit-text-decoration-skip: objects;
+}
+
+a.table:hover {
+  color: #00001a;
+  text-decoration: underline;
+}
+
 a:not([href]):not([tabindex]) {
   color: inherit;
   text-decoration: none;
@@ -1525,6 +1537,7 @@ pre code {
     margin-left: 91.66666667%;
   }
 }
+
 
 .table, .text-wrap table {
   width: 100%;

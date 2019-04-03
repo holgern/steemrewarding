@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, render_template, redirect, url_for, session, flash
 from flask_wtf import FlaskForm
-from flask_table import Table, Col, LinkCol
+from flask_table import Table, Col, LinkCol, BoolCol, DatetimeCol
+from flask_table.html import element
 from flask_cors import CORS
 import os
 import ast
@@ -93,37 +94,62 @@ def valid_age(post, hours=156):
     return True
 
 
+class ExternalURLCol(Col):
+    def __init__(self, name, url_attr, **kwargs):
+        self.url_attr = url_attr
+        super(ExternalURLCol, self).__init__(name, **kwargs)
+
+    def td_contents(self, item, attr_list):
+        text = self.from_attr_list(item, attr_list)
+        url = self.from_attr_list(item, [self.url_attr])
+        return element('a', {'href': 'https://steemit.com/' + url, 'target': "_blank", 'class': 'table'}, content=text)
+
+class ExternalAuthorURLCol(Col):
+    def __init__(self, name, url_attr, **kwargs):
+        self.url_attr = url_attr
+        super(ExternalAuthorURLCol, self).__init__(name, **kwargs)
+
+    def td_contents(self, item, attr_list):
+        text = self.from_attr_list(item, attr_list)
+        url = self.from_attr_list(item, [self.url_attr])
+        return element('a', {'href': 'https://steemit.com/@' + url, 'target': "_blank", 'class': 'table'}, content=text)
+
 
 class Results(Table):
     edit = LinkCol('Edit', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post'))
     copy = LinkCol('Copy', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post', copy_rule='main_post'))
     delete = LinkCol('Delete', 'delete_rule', url_kwargs=dict(author='author', main_post='main_post'))
     
-    author = Col('author')
+    author = ExternalAuthorURLCol('author', url_attr='author', attr='author')
     main_post = Col('main post')
-    vote_delay_min = Col('Vote delay min')
-    maximum_vote_delay_min = Col('max vote delay min')
-    include_tags = Col('include tags')
-    exclude_tags = Col('exclude tags')
-    vote_weight = Col('vote weight')
     enabled = Col('enabled')
-    vote_sbd = Col('vote sbd')
-    max_votes_per_day = Col('max votes per day')
-    max_votes_per_week = Col('max votes per week')
+    
+    vote_delay_min = Col('Vote delay [min]')
+    maximum_vote_delay_min = Col('max. vote delay [min]')
+    
+    vote_weight = Col('vote weight [%]')
+    vote_sbd = Col('vote sbd [$]')
+    max_votes_per_day = Col('max. votes per day')
+    max_votes_per_week = Col('max. votes per week')
+    min_vp = Col('min. vp [%]')
+    vp_scaler = Col('vp scaler')    
     vote_when_vp_reached = Col('vote when vp reached')
     vp_reached_order = Col('vp reached order')
-    min_vp = Col('min vp')
-    vp_scaler = Col('vp scaler')
-    leave_comment = Col('leave comment')
-    minimum_word_count = Col('minimum word count')
+
+    
+    include_tags = Col('include tags')
+    exclude_tags = Col('exclude tags')    
+    minimum_word_count = Col('min. word count')
     include_apps = Col('include apps')
     exclude_apps = Col('exclude apps')
+
+    include_text = Col('include text')
+    exclude_text = Col('exclude text')
     exclude_declined_payout = Col('exclude declined payout')
     
     max_net_votes = Col('max net votes')
-    max_pending_payout = Col('max pending payout')
-    include_text = Col('include text')
-    exclude_text = Col('exclude text')
+    max_pending_payout = Col('max pending payout [$]')    
+    leave_comment = Col('leave comment')
     # 
 
     # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
@@ -135,47 +161,59 @@ class TrailResults(Table):
     delete = LinkCol('Delete', 'delete_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
     voter_to_follow = Col('voter to follow')
     # account = Col('account')
-    enabled = Col('enabled')
     only_main_post = Col('only main post')
+    enabled = Col('enabled')
+
     vote_weight_treshold = Col('vote weight treshold')
     vote_weight_scaler = Col('vote weight scaler')
     vote_weight_offset = Col('vote weight offset')
     
+    minimum_vote_delay_min = Col('min. vote_delay [min]')
+    maximum_vote_delay_min = Col('max. vote_delay [min]')    
+  
+    
+    max_votes_per_day = Col('max votes per day')
+    max_votes_per_week = Col('max votes per week')    
+    
+    min_vp = Col('min vp [%]')
+    vp_scaler = Col('vp scaler')
+    
     vote_when_vp_reached = Col('vote when vp reached')
-    vp_reached_order = Col('vp reached order')    
+    vp_reached_order = Col('vp reached order')      
     
     include_authors = Col('include authors')
     exclude_authors = Col('exclude authors')    
     include_tags = Col('include tags')
     exclude_tags = Col('exclude tags')
-    minimum_vote_delay_min = Col('minimum vote_delay min')
-    maximum_vote_delay_min = Col('maximum vote_delay min')
-    
-    max_votes_per_day = Col('max votes per day')
-    max_votes_per_week = Col('max votes per week')
-    min_vp = Col('min vp')
-    vp_scaler = Col('vp scaler')
+
     exclude_declined_payout = Col('exclude declined payout')
-    max_net_votes = Col('max net votes')
-    max_pending_payout = Col('max pending payout')
+    max_net_votes = Col('max. net votes')
+    max_pending_payout = Col('max. pending payout [$]')
 
     # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
 
 
 class VotesLog(Table):
-    authorperm = Col('authorperm')
-    author = Col('author')
+    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm')
+    author = ExternalAuthorURLCol('author', url_attr='author', attr='author')
     timestamp = Col('timestamp')
     vote_weight = Col('vote weight [%]')
     vote_delay_min = Col('vote delay [min]')
     voted_after_min = Col('voted after [min]')
     vp = Col('vp [%]')
-    vote_when_vp_reached = Col('vote when vp reached')
+    vote_when_vp_reached = BoolCol('vote when vp reached')
     performance = Col('curation performance [%]')
+    allow_sort = True
+    def sort_url(self, col_key, reverse=False):
+        if reverse:
+            direction = 'desc'
+        else:
+            direction = 'asc'
+        return url_for('show_vote_log', sort=col_key, direction=direction)
 
 
 class FailedVotesLog(Table):
-    authorperm = Col('authorperm')
+    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm')
     error = Col("error")
     timestamp = Col('timestamp')
     vote_weight = Col('vote weight')
@@ -271,7 +309,7 @@ class TrailRuleForm(FlaskForm):
     
 
 class PendingVotes(Table):
-    authorperm = Col('authorperm')
+    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm')
     vote_weight = Col('vote weight')
     comment_timestamp = Col('comment timestamp')
     vote_delay_min = Col('vote delay min')
@@ -505,6 +543,9 @@ def show_trail_rules():
 @app.route('/show_vote_log', methods=['GET'])
 @login
 def show_vote_log():
+    sort = request.args.get('sort', 'timestamp')
+    reverse = (request.args.get('direction', 'asc') == 'asc')
+    
     name = steemconnect.me()["name"]
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
     voteLogTrx = VoteLogTrx(db)
@@ -515,7 +556,11 @@ def show_vote_log():
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteLogTrx = VoteLogTrx(db)
         logs = voteLogTrx.get_votes(name)
-    table = VotesLog(logs)
+    try:
+        sorted_log = sorted(logs, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_log = logs
+    table = VotesLog(sorted_log)
     table.border = True
     return render_template('votes_log.html', table=table, user=name)
 
