@@ -116,53 +116,59 @@ class ExternalAuthorURLCol(Col):
 
 
 class Results(Table):
-    edit = LinkCol('Edit', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post'))
-    copy = LinkCol('Copy', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post', copy_rule='main_post'))
-    delete = LinkCol('Delete', 'delete_rule', url_kwargs=dict(author='author', main_post='main_post'))
+    edit = LinkCol('Edit', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post'), allow_sort = False)
+    copy = LinkCol('Copy', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post', copy_rule='main_post'), allow_sort = False)
+    delete = LinkCol('Delete', 'delete_rule', url_kwargs=dict(author='author', main_post='main_post'), allow_sort = False)
     
-    author = ExternalAuthorURLCol('author', url_attr='author', attr='author')
-    main_post = Col('main post')
-    enabled = Col('enabled')
+    author = ExternalAuthorURLCol('author', url_attr='author', attr='author', allow_sort = True)
+    main_post = BoolCol('main post', allow_sort = False)
+    enabled = BoolCol('enabled', allow_sort = False)
     
-    vote_delay_min = Col('Vote delay [min]')
-    maximum_vote_delay_min = Col('max. vote delay [min]')
+    vote_delay_min = Col('Vote delay [min]', allow_sort = True)
+    maximum_vote_delay_min = Col('max. vote delay [min]', allow_sort = True)
     
-    vote_weight = Col('vote weight [%]')
-    vote_sbd = Col('vote sbd [$]')
-    max_votes_per_day = Col('max. votes per day')
-    max_votes_per_week = Col('max. votes per week')
-    min_vp = Col('min. vp [%]')
-    vp_scaler = Col('vp scaler')    
-    vote_when_vp_reached = Col('vote when vp reached')
-    vp_reached_order = Col('vp reached order')
+    vote_weight = Col('vote weight [%]', allow_sort = True)
+    vote_sbd = Col('vote sbd [$]', allow_sort = True)
+    max_votes_per_day = Col('max. votes per day', allow_sort = True)
+    max_votes_per_week = Col('max. votes per week', allow_sort = True)
+    min_vp = Col('min. vp [%]', allow_sort = True)
+    vp_scaler = Col('vp scaler', allow_sort = False)    
+    vote_when_vp_reached = BoolCol('vote when vp reached', allow_sort = False)
+    vp_reached_order = Col('vp reached order', allow_sort = False)
 
     
-    include_tags = Col('include tags')
-    exclude_tags = Col('exclude tags')    
-    minimum_word_count = Col('min. word count')
-    include_apps = Col('include apps')
-    exclude_apps = Col('exclude apps')
+    include_tags = Col('include tags', allow_sort = False)
+    exclude_tags = Col('exclude tags', allow_sort = False)    
+    minimum_word_count = Col('min. word count', allow_sort = False)
+    include_apps = Col('include apps', allow_sort = False)
+    exclude_apps = Col('exclude apps', allow_sort = False)
 
-    include_text = Col('include text')
-    exclude_text = Col('exclude text')
-    exclude_declined_payout = Col('exclude declined payout')
+    include_text = Col('include text', allow_sort = False)
+    exclude_text = Col('exclude text', allow_sort = False)
+    exclude_declined_payout = BoolCol('exclude declined payout', allow_sort = False)
     
-    max_net_votes = Col('max net votes')
-    max_pending_payout = Col('max pending payout [$]')    
-    leave_comment = Col('leave comment')
-    # 
+    max_net_votes = Col('max net votes', allow_sort = False)
+    max_pending_payout = Col('max pending payout [$]', allow_sort = False)    
+    leave_comment = BoolCol('leave comment', allow_sort = False)
+    allow_sort = True
+    def sort_url(self, col_key, reverse=False):
+        if col_key in ["author", "vote_weight", "vote_delay_min", "min_vp"]:
+            direction = 'asc'
+        else:
+            direction = 'desc'
+        return url_for('show_rules', sort=col_key, direction=direction)    
 
-    # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
+
 
 
 class TrailResults(Table):
-    edit = LinkCol('Edit', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
-    copy = LinkCol('Copy', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow', copy_rule='enabled'))
-    delete = LinkCol('Delete', 'delete_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'))
+    edit = LinkCol('Edit', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'), allow_sort = False)
+    copy = LinkCol('Copy', 'edit_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow', copy_rule='enabled'), allow_sort = False)
+    delete = LinkCol('Delete', 'delete_trail_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'), allow_sort = False)
     voter_to_follow = Col('voter to follow')
     # account = Col('account')
-    only_main_post = Col('only main post')
-    enabled = Col('enabled')
+    only_main_post = BoolCol('only main post', allow_sort = False)
+    enabled = BoolCol('enabled', allow_sort = False)
 
     vote_weight_treshold = Col('vote weight treshold')
     vote_weight_scaler = Col('vote weight scaler')
@@ -176,39 +182,46 @@ class TrailResults(Table):
     max_votes_per_week = Col('max votes per week')    
     
     min_vp = Col('min vp [%]')
-    vp_scaler = Col('vp scaler')
+    vp_scaler = Col('vp scaler', allow_sort = False)
     
-    vote_when_vp_reached = Col('vote when vp reached')
-    vp_reached_order = Col('vp reached order')      
+    vote_when_vp_reached = BoolCol('vote when vp reached', allow_sort = False)
+    vp_reached_order = Col('vp reached order', allow_sort = False)      
     
-    include_authors = Col('include authors')
-    exclude_authors = Col('exclude authors')    
-    include_tags = Col('include tags')
-    exclude_tags = Col('exclude tags')
+    include_authors = Col('include authors', allow_sort = False)
+    exclude_authors = Col('exclude authors', allow_sort = False)    
+    include_tags = Col('include tags', allow_sort = False)
+    exclude_tags = Col('exclude tags', allow_sort = False)
 
-    exclude_declined_payout = Col('exclude declined payout')
-    max_net_votes = Col('max. net votes')
-    max_pending_payout = Col('max. pending payout [$]')
+    exclude_declined_payout = BoolCol('exclude declined payout', allow_sort = False)
+    max_net_votes = Col('max. net votes', allow_sort = False)
+    max_pending_payout = Col('max. pending payout [$]', allow_sort = False)
 
     # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
+    allow_sort = True
+    def sort_url(self, col_key, reverse=False):
+        if col_key in ["voter_to_follow", "vote_weight", "minimum_vote_delay_min", "min_vp"]:
+            direction = 'asc'
+        else:
+            direction = 'desc'
+        return url_for('show_trail_rules', sort=col_key, direction=direction)    
 
 
 class VotesLog(Table):
-    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm')
+    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', allow_sort=False)
     author = ExternalAuthorURLCol('author', url_attr='author', attr='author')
     timestamp = Col('timestamp')
     vote_weight = Col('vote weight [%]')
     vote_delay_min = Col('vote delay [min]')
     voted_after_min = Col('voted after [min]')
     vp = Col('vp [%]')
-    vote_when_vp_reached = BoolCol('vote when vp reached')
+    vote_when_vp_reached = BoolCol('vote when vp reached', allow_sort=False)
     performance = Col('curation performance [%]')
     allow_sort = True
     def sort_url(self, col_key, reverse=False):
-        if reverse:
-            direction = 'desc'
-        else:
+        if col_key in ["authorperm", "author", "vote_weight", "vote_delay_min", "voted_after_min"]:
             direction = 'asc'
+        else:
+            direction = 'desc'
         return url_for('show_vote_log', sort=col_key, direction=direction)
 
 
@@ -220,7 +233,7 @@ class FailedVotesLog(Table):
     vote_delay_min = Col('vote delay min')
     min_vp = Col('vp min')
     vp = Col('vp')
-    vote_when_vp_reached = Col('vote when vp reached')
+    vote_when_vp_reached = BoolCol('vote when vp reached')
 
 class SettingsForm(FlaskForm):
 
@@ -508,6 +521,8 @@ def welcome():
 @app.route('/show_rules', methods=['GET'])
 @login
 def show_rules():
+    sort = request.args.get('sort', 'author')
+    reverse = (request.args.get('direction', 'asc') == 'desc')    
     name = steemconnect.me()["name"]
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
     voteRulesTrx = VoteRulesTrx(db)
@@ -517,13 +532,19 @@ def show_rules():
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteRulesTrx = VoteRulesTrx(db)
         rules = voteRulesTrx.get_posts(name)
-    table = Results(rules)
+    try:
+        sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_rules = rules    
+    table = Results(sorted_rules)
     table.border = True
     return render_template('show_rules.html', table=table, user=name)    
 
 @app.route('/show_trail_rules', methods=['GET'])
 @login
 def show_trail_rules():
+    sort = request.args.get('sort', 'voter_to_follow')
+    reverse = (request.args.get('direction', 'asc') == 'desc')      
     name = steemconnect.me()["name"]
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
     trailVoteRulesTrx = TrailVoteRulesTrx(db)
@@ -534,7 +555,11 @@ def show_trail_rules():
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         trailVoteRulesTrx = TrailVoteRulesTrx(db)
         rules = trailVoteRulesTrx.get_rules_by_account(name)
-    table = TrailResults(rules)
+    try:
+        sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_rules = rules      
+    table = TrailResults(sorted_rules)
     table.border = True
     table.table_id = "rules"
     table.classes  = ["display"] 
@@ -544,7 +569,7 @@ def show_trail_rules():
 @login
 def show_vote_log():
     sort = request.args.get('sort', 'timestamp')
-    reverse = (request.args.get('direction', 'asc') == 'asc')
+    reverse = (request.args.get('direction', 'desc') == 'desc')
     
     name = steemconnect.me()["name"]
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
