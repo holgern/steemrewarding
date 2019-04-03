@@ -4,6 +4,10 @@ DROP TABLE IF EXISTS "accounts";
 CREATE TABLE "public"."accounts" (
     "name" character varying(16) NOT NULL,
     "upvote_comment" character varying(2048) NOT NULL,
+    "delegated_vests" double precision DEFAULT '0',
+    "delegated_upvote_account" character varying(16),
+    "delegated_comment_upvote" boolean DEFAULT true NOT NULL,
+    "delegated_post_upvote" boolean DEFAULT true NOT NULL,
     CONSTRAINT "accounts_name" PRIMARY KEY ("name")
 ) WITH (oids = false);
 
@@ -45,11 +49,11 @@ CREATE TABLE "public"."failed_vote_log" (
     "voter" character varying(16) NOT NULL,
     "error" character varying(1024) NOT NULL,
     "timestamp" timestamp NOT NULL,
-    "vote_weight" real NOT NULL,
-    "vote_delay_min" real NOT NULL,
-    "min_vp" real NOT NULL,
-    "vp" real NOT NULL,
-    "vote_when_vp_reached" boolean NOT NULL,
+    "vote_weight" real,
+    "vote_delay_min" real,
+    "min_vp" real,
+    "vp" real,
+    "vote_when_vp_reached" boolean,
     CONSTRAINT "failed_vote_log_authorperm_voter" PRIMARY KEY ("authorperm", "voter")
 ) WITH (oids = false);
 
@@ -60,7 +64,7 @@ DROP TABLE IF EXISTS "pending_votes";
 CREATE TABLE "public"."pending_votes" (
     "authorperm" character varying(300) NOT NULL,
     "voter" character varying(16) NOT NULL,
-    "vote_weight" real NOT NULL,
+    "vote_weight" real,
     "comment_timestamp" timestamp NOT NULL,
     "vote_delay_min" real NOT NULL,
     "created" timestamp NOT NULL,
@@ -74,9 +78,9 @@ CREATE TABLE "public"."pending_votes" (
     "vp_scaler" real DEFAULT '0' NOT NULL,
     "leave_comment" boolean DEFAULT false NOT NULL,
     "comment_command" character varying(300),
-    "vote_sbd" text,
-    "exclude_declined_payout" boolean,
+    "exclude_declined_payout" boolean DEFAULT true,
     "maximum_vote_delay_min" real DEFAULT '-1' NOT NULL,
+    "vote_sbd" real DEFAULT '0',
     CONSTRAINT "pending_votes_authorperm_voter_vote_when_vp_reached" PRIMARY KEY ("authorperm", "voter", "vote_when_vp_reached")
 ) WITH (oids = false);
 
@@ -132,6 +136,10 @@ CREATE TABLE "public"."trail_vote_rules" (
     "max_net_votes" integer DEFAULT '-1' NOT NULL,
     "max_pending_payout" real DEFAULT '-1' NOT NULL,
     "vp_scaler" real DEFAULT '0' NOT NULL,
+    "scale_weight_to_voter_vp_diff" boolean DEFAULT false NOT NULL,
+    "vote_when_vp_reached" boolean DEFAULT false NOT NULL,
+    "vp_reached_order" smallint DEFAULT '1' NOT NULL,
+    "vote_sbd" real DEFAULT '0' NOT NULL,
     CONSTRAINT "trail_vote_rules_voter_account" PRIMARY KEY ("voter_to_follow", "account")
 ) WITH (oids = false);
 
@@ -209,4 +217,4 @@ CREATE TABLE "public"."votes" (
 CREATE INDEX "ix_votes_75a831de789ee9f6" ON "public"."votes" USING btree ("authorperm", "voter");
 
 
--- 2019-02-05 12:55:23.496746+01
+-- 2019-04-03 15:42:53.610156+02
