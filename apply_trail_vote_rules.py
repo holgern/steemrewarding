@@ -141,11 +141,15 @@ if __name__ == "__main__":
                 
             if rule["enabled"]:
                 vote_weight = rule["vote_weight_scaler"] * weight / 100 + rule["vote_weight_offset"]
+                if vote_weight > 100:
+                    vote_weight = 100
+                if vote_weight < 0:
+                    vote_weight = 0
                 pending_vote = {"authorperm": authorperm, "voter": rule["account"], "vote_weight": vote_weight, "comment_timestamp": post["created"].replace(tzinfo=None),
                                 "vote_delay_min": rule["minimum_vote_delay_min"], "created": datetime.utcnow(), "min_vp": rule["min_vp"], "vote_when_vp_reached": rule["vote_when_vp_reached"],
                                 "vp_reached_order": rule["vp_reached_order"], "max_net_votes": rule["max_net_votes"], "max_pending_payout": rule["max_pending_payout"],
                                 "max_votes_per_day": rule["max_votes_per_day"], "max_votes_per_week": rule["max_votes_per_week"], "vp_scaler": rule["vp_scaler"], "leave_comment": False,
-                                "maximum_vote_delay_min": rule["maximum_vote_delay_min"]}
+                                "maximum_vote_delay_min": rule["maximum_vote_delay_min"], "vote_sbd": rule["vote_sbd"]}
                 pendingVotesTrx.add(pending_vote)
 
     confStorage.update({"last_vote": last_vote})

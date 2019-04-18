@@ -8,6 +8,7 @@ from beem.blockchain import Blockchain
 import time 
 import json
 import os
+import sys
 import math
 import dataset
 import random
@@ -120,8 +121,8 @@ if __name__ == "__main__":
             # continue
         last_streamed_block = ops["block_num"]
         if ops["type"] == "transfer" and ops["to"] == "rewarding":
-            authorperm = op["memo"].split(",")[0]
-            command = ",".join(op["memo"].split(",")[1:])
+            authorperm = ops["memo"].split(",")[0]
+            command = ",".join(ops["memo"].split(",")[1:])
             commandsTrx.add({"authorperm": authorperm, "command": command, "account": ops["from"], "valid": True, "created": ops["timestamp"].replace(tzinfo=None), "in_progress": False,
                              "done": False, "block": ops["block_num"]})
             continue
@@ -150,7 +151,10 @@ if __name__ == "__main__":
         try:
             c = Comment(authorperm, steem_instance=stm)
         except:
-            continue
+            try:
+                c = Comment(authorperm, steem_instance=stm)
+            except:
+                continue            
         main_post = c.is_main_post()
         dt_created = c["created"]
         dt_created = dt_created.replace(tzinfo=None)        

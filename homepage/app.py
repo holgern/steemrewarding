@@ -171,8 +171,8 @@ class TrailResults(Table):
     enabled = BoolCol('enabled', allow_sort = False)
 
     vote_weight_treshold = Col('vote weight treshold')
-    vote_weight_scaler = Col('vote weight scaler')
-    vote_weight_offset = Col('vote weight offset')
+    vote_weight_scaler = Col('vote weight scaler [%]')
+    vote_weight_offset = Col('vote weight offset [%]')
     
     minimum_vote_delay_min = Col('min. vote_delay [min]')
     maximum_vote_delay_min = Col('max. vote_delay [min]')    
@@ -294,8 +294,8 @@ class TrailRuleForm(FlaskForm):
     only_main_post = BooleanField('only_main_post (When True, only posts will be upvoted)', default=True)
     vote_weight_treshold = FloatField('vote_weight_treshold - skip votes with lower weight', default=0.0)
     
-    vote_weight_scaler = FloatField('vote_weight_scaler [%] - set the vote weight percentage in comparison to the vote to follow.', default=50.0)
-    vote_weight_offset = FloatField('vote_weight_offset [%] - is added after applying vote_weight_scaler.', default=0.0)
+    vote_weight_scaler = FloatField('vote_weight_scaler [%] - scales the vote weight (e.g. 50% will halve the weight, 200% will double it)', default=50.0)
+    vote_weight_offset = FloatField('vote_weight_offset [%] - the offset is added to the weight after scaling the vote', default=0.0)
 
     enabled = BooleanField('enabled', default=True)
     
@@ -784,6 +784,34 @@ def new_trail_rule():
         return redirect('/show_trail_rules')
 
     return render_template('new_trail_rule.html', form=form, user=name)
+
+
+@app.route('/@<author>', methods=['GET', 'POST'])
+@login
+def new_rule_link(author):
+    """
+    Add a new rule
+    """
+    name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)    
+    form = RuleForm(request.form)
+
+    if request.method == 'POST': # and form.validate():
+        # save the rule
+        rule_dict = rule_dict_from_form(name, form)
+        try:
+            voteRulesTrx.add(rule_dict)
+        except:
+            db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+            voteRulesTrx = VoteRulesTrx(db)
+            voteRulesTrx.add(rule_dict)        
+        flash('Rule created successfully!')
+        return redirect('/show_rules')
+    else:
+        form.author.data = author
+
+    return render_template('new_rule.html', form=form, user=name)
 
 
 @app.route('/new_rule', methods=['GET', 'POST'])
