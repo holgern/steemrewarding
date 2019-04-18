@@ -23,6 +23,7 @@ from steemrewarding.config_storage import ConfigurationDB
 from steemrewarding.vote_storage import VotesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
+from steemrewarding.account_storage import AccountsDB
 from steemrewarding.utils import isfloat, upvote_comment, valid_age
 from steemrewarding.version import version as rewardingversion
 import dataset
@@ -53,47 +54,25 @@ if __name__ == "__main__":
     pendingVotesTrx = PendingVotesTrx(db)
     voteLogTrx = VoteLogTrx(db)
     failedVoteLogTrx = FailedVoteLogTrx(db)
+    accountsDB = AccountsDB(db)
 
     conf_setup = confStorage.get()
     # last_post_block = conf_setup["last_post_block"]
 
-    if True:
-        max_batch_size = 50
-        threading = False
-        wss = False
-        https = True
-        normal = False
-        appbase = True
-    elif False:
-        max_batch_size = None
-        threading = True
-        wss = True
-        https = False
-        normal = True
-        appbase = True
-    else:
-        max_batch_size = None
-        threading = False
-        wss = True
-        https = True
-        normal = True
-        appbase = True        
-
     nodes = NodeList()
-    # nodes.update_nodes(weights={"block": 1})
     try:
         nodes.update_nodes()
     except:
         print("could not update nodes")
     
-    node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
+    node_list = nodes.get_nodes()
     if "https://api.steemit.com" in node_list:
         node_list.remove("https://api.steemit.com")
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     b = Blockchain(steem_instance = stm)
     updated_vote_log = []
-    voteLogTrx.delete_old_logs(7)
-    for n in range(4):
+    voteLogTrx.delete_old_logs(14)
+    for n in range(32):
         vote_log = voteLogTrx.get_oldest_log()
         if vote_log is not None:
             authorperm = vote_log["authorperm"]
@@ -107,21 +86,67 @@ if __name__ == "__main__":
                 continue
             try:
                 curation_rewards_SBD = c.get_curation_rewards(pending_payout_SBD=True)
+                
             except:
                 print("Could not calc curation rewards for %s (stm: %s)" % (c["authorperm"], stm))
                 vote_log["last_update"] = datetime.utcnow()
                 voteLogTrx.update(vote_log)
                 continue
             performance = 0
+            rshares = 0
             for vote in c["active_votes"]:
                 if vote["voter"] != vote_log["voter"]:
                     continue
-                vote_SBD = stm.rshares_to_sbd(int(vote["rshares"]))
+                rshares = int(vote["rshares"])
+                vote_SBD = stm.rshares_to_sbd(rshares)
                 curation_SBD = curation_rewards_SBD["active_votes"][vote["voter"]]
                 if vote_SBD > 0:
                     performance = (float(curation_SBD) / vote_SBD * 100)
+                    
+            best_performance = 0
+            best_vote_delay_min = 0
+            for v in c["active_votes"]:
+                v_SBD = stm.rshares_to_sbd(int(v["rshares"]))
+                if v_SBD > 0 and int(v["rshares"]) > rshares * 0.5:
+                    
+                    p = float(curation_rewards_SBD["active_votes"][v["voter"]]) / v_SBD * 100
+                    if p > best_performance:
+                        best_performance = p
+                        best_vote_delay_min = ((v["time"]) - c["created"]).total_seconds() / 60
+            acc_data = accountsDB.get(vote_log["voter"])
+            vote_delay_diff = vote_log["voted_after_min"] - vote_log["vote_delay_min"]
+            if acc_data is not None and acc_data["optimize_vote_delay"] and not vote_log["vote_when_vp_reached"] and abs(vote_delay_diff) < 1.0:
+                minimum_vote_delay = acc_data["minimum_vote_delay"]
+                maximum_vote_delay = acc_data["maximum_vote_delay"]
+                optimize_threshold = 1 + (acc_data["optimize_threshold"] / 100)
+                optimize_ma_length = acc_data["optimize_ma_length"]
+                
+                    
+                vote_rule = voteRulesTrx.get(vote_log["voter"], c["author"], c.is_main_post())
+                if vote_rule is not None and not vote_rule["disable_optimization"]:
+                    vote_delay_min = vote_rule["vote_delay_min"]
+                    if best_performance > performance * optimize_threshold and vote_delay_min <= maximum_vote_delay and vote_delay_min >= minimum_vote_delay:
+                        if optimize_ma_length > 1:
+                            vote_delay_min = (vote_delay_min * (optimize_ma_length - 1) + best_vote_delay_min) / optimize_ma_length
+                        else:
+                            vote_delay_min = best_vote_delay_min
+                        if vote_delay_min > maximum_vote_delay:
+                            vote_delay_min = maximum_vote_delay
+                        elif vote_delay_min < minimum_vote_delay:
+                            vote_delay_min = minimum_vote_delay
+                        voteRulesTrx.update({"voter": vote_log["voter"], "author": c["author"], "main_post": c.is_main_post(),
+                                             "vote_delay_min": vote_delay_min})
+                        vote_log["optimized_vote_delay_min"] = vote_delay_min
+            
+            if best_vote_delay_min > 0:
+                vote_log["best_vote_delay_min"] = best_vote_delay_min
+            if best_performance  > 0:
+                vote_log["best_performance"] = best_performance
+            if rshares > 0:
+                vote_log["vote_rshares"] = rshares
             vote_log["last_update"] = datetime.utcnow()
-            vote_log["performance"] = performance
+            if performance > 0:
+                vote_log["performance"] = performance
             voteLogTrx.update(vote_log)
         
 

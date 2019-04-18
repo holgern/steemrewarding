@@ -35,7 +35,7 @@ def upvote_comment(c_comment, acc_vote_name, acc_vote_weight):
     while not (vote_sucessfull or already_voted) and cnt < 5:
         try:
             c_comment.upvote(weight=acc_vote_weight, voter=acc_vote_name)
-            time.sleep(4)
+            time.sleep(1)
             c_comment.refresh()
             for v in c_comment["active_votes"]:
                 if acc_vote_name == v["voter"]:

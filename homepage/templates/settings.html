@@ -14,6 +14,13 @@
 <form method=post>
     <dl>
         {{ render_field(form.upvote_comment) }}
+        {{ render_field(form.optimize_vote_delay) }}
+        {{ render_field(form.minimum_vote_delay) }}
+        {{ render_field(form.maximum_vote_delay) }}
+        {{ render_field(form.optimize_threshold) }}
+        {{ render_field(form.optimize_ma_length) }}
+        
+
     </dl>
     <p><input type=submit value=Submit>
 </form>

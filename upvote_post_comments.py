@@ -60,28 +60,6 @@ if __name__ == "__main__":
     conf_setup = confStorage.get()
     # last_post_block = conf_setup["last_post_block"]
 
-    if True:
-        max_batch_size = 50
-        threading = False
-        wss = False
-        https = True
-        normal = False
-        appbase = True
-    elif False:
-        max_batch_size = None
-        threading = True
-        wss = True
-        https = False
-        normal = True
-        appbase = True
-    else:
-        max_batch_size = None
-        threading = False
-        wss = True
-        https = True
-        normal = True
-        appbase = True        
-
     nodes = NodeList()
     # nodes.update_nodes(weights={"block": 1})
     try:
@@ -89,12 +67,13 @@ if __name__ == "__main__":
     except:
         print("could not update nodes")
     
-    node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
+    node_list = nodes.get_nodes()
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     stm.wallet.unlock(wallet_password)
-    
+    vote_count = 0
     delete_pending_votes = []
     for pending_vote in pendingVotesTrx.get_command_list_timed():
+        # print("time vote %.2f s - %d votes" % (time.time() - start_prep_time, vote_count))
         if (pending_vote["vote_weight"] is None or pending_vote["vote_weight"] <= 0) and (pending_vote["vote_sbd"] is None or float(pending_vote["vote_sbd"]) <= 0):
             voter_acc = Account(pending_vote["voter"], steem_instance=stm)
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "vote_weight was set to zero. (%s %% and %s $)" % (pending_vote["vote_weight"], pending_vote["vote_sbd"]),
@@ -227,6 +206,7 @@ if __name__ == "__main__":
         sucess = upvote_comment(c, voter_acc["name"], vote_weight)
 
         if sucess:
+            vote_count += 1
             if pending_vote["leave_comment"]:
                 try:
                     settings = accountsTrx.get(voter_acc["name"])
@@ -247,7 +227,9 @@ if __name__ == "__main__":
     for pending_vote in delete_pending_votes:
         pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"], pending_vote["vote_when_vp_reached"])
     delete_pending_votes = []
-
+    
+    print("time vote %.2f s - %d votes" % (time.time() - start_prep_time, vote_count))
+    
     for pending_vote in pendingVotesTrx.get_command_list_vp_reached():
         if (pending_vote["vote_weight"] is None or pending_vote["vote_weight"] <= 0) and (pending_vote["vote_sbd"] is None or float(pending_vote["vote_sbd"]) <= 0):
             voter_acc = Account(pending_vote["voter"], steem_instance=stm)
@@ -374,6 +356,7 @@ if __name__ == "__main__":
             continue
         sucess = upvote_comment(c, voter_acc["name"], vote_weight)
         if sucess:
+            vote_count += 1
             if pending_vote["leave_comment"]:
                 try:
                     settings = accountsTrx.get(voter_acc["name"])
@@ -395,4 +378,4 @@ if __name__ == "__main__":
     for pending_vote in delete_pending_votes:
         pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"], pending_vote["vote_when_vp_reached"])
     delete_pending_votes = []
-    print("upvote posts script run %.2f s" % (time.time() - start_prep_time))
+    print("upvote posts script run %.2f s - %d votes were broadcasted" % (time.time() - start_prep_time, vote_count))

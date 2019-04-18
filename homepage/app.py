@@ -150,6 +150,7 @@ class Results(Table):
     max_net_votes = Col('max net votes', allow_sort = False)
     max_pending_payout = Col('max pending payout [$]', allow_sort = False)    
     leave_comment = BoolCol('leave comment', allow_sort = False)
+    disable_optimization = BoolCol('dis. opt.', allow_sort = False)
     allow_sort = True
     def sort_url(self, col_key, reverse=False):
         if col_key in ["author", "vote_weight", "vote_delay_min", "min_vp"]:
@@ -217,6 +218,8 @@ class VotesLog(Table):
     vp = Col('vp [%]')
     vote_when_vp_reached = BoolCol('vote when vp reached', allow_sort=False)
     performance = Col('curation performance [%]')
+    best_vote_delay_min = Col('best vote delay [min]')
+    best_performance = Col('best curation [%]')
     allow_sort = True
     def sort_url(self, col_key, reverse=False):
         if col_key in ["authorperm", "author", "vote_weight", "vote_delay_min", "voted_after_min"]:
@@ -239,6 +242,12 @@ class FailedVotesLog(Table):
 class SettingsForm(FlaskForm):
 
     upvote_comment = TextAreaField('upvote comment (placeholder for author: {{name}} and placeholder for voter is {{voter}})')
+    optimize_vote_delay = BooleanField('optimize_vote_delay (When true, vote delay of time based vote rules will be optimized)', default=False)
+    minimum_vote_delay = FloatField('minimum_vote_delay [min] (defines the minimum vote delay for vote delay optimization, only votes with an initial vote delay which is higher then minimum_vote_delay will be optimized)', default=3)
+    maximum_vote_delay = FloatField('maximum_vote_delay [min] (defines the maximum vote delay for vote delay optimization, only votes with an initial vote delay which is lower then maximum_vote_delay will be optimized))', default=15)
+    optimize_threshold = FloatField('optimize_threshold [%] (A vote delay optimization is only performed when the best vote time differs from the set vote time more than this percentage )', default=5)
+    optimize_ma_length = IntegerField('optimize_ma_length (Defines the moving average length, when set to 1, each optimal delay time overwrites direclty the vote delay)', default=20)
+
 
 
 class VoteForm(FlaskForm):
@@ -285,7 +294,7 @@ class RuleForm(FlaskForm):
     
     include_text = TextAreaField('include_text (When set, only posts/comments containing the given string are upvoted)')
     exclude_text = TextAreaField('exclude_text (When set, posts/comments containing the given string are not upvoted)')
-
+    disable_optimization = BooleanField('disable_optimization (When true, the vote delay of this entry is not optimized')
 
 class TrailRuleForm(FlaskForm):
 
@@ -369,6 +378,7 @@ def set_form(form, rule):
     form.max_pending_payout.data = rule["max_pending_payout"]
     form.include_text.data = rule["include_text"]
     form.exclude_text.data = rule["exclude_text"]
+    form.disable_optimization.data = rule["disable_optimization"]
     return form
 
 
@@ -413,7 +423,8 @@ def rule_dict_from_form(voter, form):
             "min_vp": form.min_vp.data, "vp_scaler": form.vp_scaler.data, "leave_comment": form.leave_comment.data,
             "minimum_word_count": form.minimum_word_count.data, "include_apps": form.include_apps.data, "exclude_apps": form.exclude_apps.data,
             "exclude_declined_payout": form.exclude_declined_payout.data, "max_net_votes": form.max_net_votes.data,
-            "max_pending_payout": form.max_pending_payout.data, "include_text": form.include_text.data, "exclude_text": form.exclude_text.data}
+            "max_pending_payout": form.max_pending_payout.data, "include_text": form.include_text.data, "exclude_text": form.exclude_text.data,
+            "disable_optimization": form.disable_optimization.data}
 
     return rule
 
@@ -457,7 +468,9 @@ def settings_dict_from_form(account, form):
     """
     upvote_comment = form.upvote_comment.data
 
-    settings = {"name": account, "upvote_comment": upvote_comment}
+    settings = {"name": account, "upvote_comment": upvote_comment, "optimize_vote_delay": form.optimize_vote_delay.data,
+                "minimum_vote_delay": form.minimum_vote_delay.data, "maximum_vote_delay": form.maximum_vote_delay.data,
+                "optimize_ma_length": form.optimize_ma_length.data, "optimize_threshold": form.optimize_threshold.data}
     return settings
 
 def login(func):
@@ -756,7 +769,12 @@ def settings():
         return redirect('/welcome')
     else:
         if setting:
-            form.upvote_comment.data = setting["upvote_comment"]        
+            form.upvote_comment.data = setting["upvote_comment"]    
+            form.optimize_vote_delay.data = setting["optimize_vote_delay"] 
+            form.minimum_vote_delay.data = setting["minimum_vote_delay"] 
+            form.maximum_vote_delay.data = setting["maximum_vote_delay"] 
+            form.optimize_ma_length.data = setting["optimize_ma_length"]
+            form.optimize_threshold.data = setting["optimize_threshold"]
         return render_template('settings.html', form=form, user=name)
 
 
