@@ -41,6 +41,7 @@ if __name__ == "__main__":
         databaseConnector = config_data["databaseConnector"]
         wallet_password = config_data["wallet_password"]
         posting_auth_acc = config_data["posting_auth_acc"]
+        voting_round_sec = config_data["voting_round_sec"]
 
     start_prep_time = time.time()
     db = dataset.connect(databaseConnector)
@@ -95,7 +96,7 @@ if __name__ == "__main__":
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue
 
-        if age_min < pending_vote["vote_delay_min"]:
+        if age_min < pending_vote["vote_delay_min"] - voting_round_sec / 2.0 / 60:
             continue
         voter_acc = Account(pending_vote["voter"], steem_instance=stm)
         if voter_acc.sp < 0.1:
@@ -133,7 +134,7 @@ if __name__ == "__main__":
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue                
         age_min = (addTzInfo(datetime.utcnow()) - c["created"]).total_seconds() / 60
-        if age_min < pending_vote["vote_delay_min"]:
+        if age_min < pending_vote["vote_delay_min"] - voting_round_sec / 2.0 / 60:
             continue
         if pending_vote["max_net_votes"] >= 0 and pending_vote["max_net_votes"] < c["net_votes"]:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The number of post/comment votes (%d) is higher than max_net_votes (%d)." % (c["net_votes"], pending_vote["max_net_votes"]),
@@ -220,7 +221,7 @@ if __name__ == "__main__":
             voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
                             "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                             "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
-                            "last_update": datetime.utcnow()})
+                            "trail_vote": pending_vote["trail_vote"]})
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue
 
@@ -255,11 +256,10 @@ if __name__ == "__main__":
                                   "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})              
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue            
-        if pending_vote["max_net_votes"] < 0 and pending_vote["max_pending_payout"] < 0:
-            if voter_acc.vp < pending_vote["min_vp"]:
-                continue
-            if age_min < pending_vote["vote_delay_min"]:
-                continue
+        if voter_acc.vp < pending_vote["min_vp"]:
+            continue
+        if age_min < pending_vote["vote_delay_min"] - voting_round_sec / 2.0 / 60:
+            continue
             
         vote_weight = pending_vote["vote_weight"]
         if vote_weight <= 0:        
@@ -300,13 +300,6 @@ if __name__ == "__main__":
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue        
         
-        if pending_vote["max_net_votes"] >= 0 or pending_vote["max_pending_payout"] >= 0:
-            if voter_acc.vp < pending_vote["min_vp"]:
-                continue
-            if age_min < pending_vote["vote_delay_min"]:
-                continue
-
-
         author, permlink = resolve_authorperm(pending_vote["authorperm"])
         votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"], author)
         if pending_vote["max_votes_per_day"] > -1 and votes_24h_before >= pending_vote["max_votes_per_day"]:
@@ -371,7 +364,7 @@ if __name__ == "__main__":
             voteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "author": c["author"],
                             "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                             "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
-                            "last_update": datetime.utcnow()})            
+                            "trail_vote": pending_vote["trail_vote"]})            
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
         continue                        
     

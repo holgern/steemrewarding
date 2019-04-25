@@ -113,9 +113,10 @@ class VoteLogTrx(object):
             logs.append(v)
         return logs        
 
-    def get_oldest_log(self):
+    def get_oldest_log(self, vote_delay_optimized=False, min_age=15):
         table = self.db[self.__tablename__]
-        return table.find_one(order_by='last_update')    
+        date_before = datetime.utcnow() - timedelta(minutes=min_age)
+        return table.find_one(table.table.columns.timestamp < date_before, vote_delay_optimized=vote_delay_optimized, order_by='last_update')    
 
     def get_votes_per_day(self, voter, author):
         table = self.db[self.__tablename__]

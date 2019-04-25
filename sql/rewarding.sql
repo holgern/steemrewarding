@@ -8,6 +8,11 @@ CREATE TABLE "public"."accounts" (
     "delegated_upvote_account" character varying(16),
     "delegated_comment_upvote" boolean DEFAULT true NOT NULL,
     "delegated_post_upvote" boolean DEFAULT true NOT NULL,
+    "optimize_vote_delay" boolean DEFAULT false NOT NULL,
+    "minimum_vote_delay" real DEFAULT '3' NOT NULL,
+    "maximum_vote_delay" real DEFAULT '15' NOT NULL,
+    "optimize_ma_length" integer DEFAULT '20' NOT NULL,
+    "optimize_threshold" real DEFAULT '5' NOT NULL,
     CONSTRAINT "accounts_name" PRIMARY KEY ("name")
 ) WITH (oids = false);
 
@@ -81,6 +86,7 @@ CREATE TABLE "public"."pending_votes" (
     "exclude_declined_payout" boolean DEFAULT true,
     "maximum_vote_delay_min" real DEFAULT '-1' NOT NULL,
     "vote_sbd" real DEFAULT '0',
+    "trail_vote" boolean DEFAULT false NOT NULL,
     CONSTRAINT "pending_votes_authorperm_voter_vote_when_vp_reached" PRIMARY KEY ("authorperm", "voter", "vote_when_vp_reached")
 ) WITH (oids = false);
 
@@ -89,6 +95,10 @@ CREATE INDEX "ix_pending_votes_25f35862d08f9a78" ON "public"."pending_votes" USI
 CREATE INDEX "ix_pending_votes_75a831de789ee9f6" ON "public"."pending_votes" USING btree ("authorperm", "voter");
 
 CREATE INDEX "pending_votes_vote_when_vp_reached" ON "public"."pending_votes" USING btree ("vote_when_vp_reached");
+
+CREATE INDEX "pending_votes_vote_when_vp_reached_created" ON "public"."pending_votes" USING btree ("vote_when_vp_reached", "created");
+
+CREATE INDEX "pending_votes_vote_when_vp_reached_vp_reached_order_created" ON "public"."pending_votes" USING btree ("vote_when_vp_reached", "vp_reached_order", "created" DESC);
 
 CREATE INDEX "pending_votes_voter" ON "public"."pending_votes" USING btree ("voter");
 
@@ -140,6 +150,7 @@ CREATE TABLE "public"."trail_vote_rules" (
     "vote_when_vp_reached" boolean DEFAULT false NOT NULL,
     "vp_reached_order" smallint DEFAULT '1' NOT NULL,
     "vote_sbd" real DEFAULT '0' NOT NULL,
+    "exclude_authors_with_vote_rule" boolean DEFAULT false NOT NULL,
     CONSTRAINT "trail_vote_rules_voter_account" PRIMARY KEY ("voter_to_follow", "account")
 ) WITH (oids = false);
 
@@ -159,6 +170,12 @@ CREATE TABLE "public"."vote_log" (
     "vote_when_vp_reached" boolean NOT NULL,
     "performance" real,
     "last_update" timestamp DEFAULT '1970-01-01 00:00:00' NOT NULL,
+    "best_vote_delay_min" real,
+    "best_performance" real,
+    "vote_rshares" bigint,
+    "optimized_vote_delay_min" real,
+    "vote_delay_optimized" boolean DEFAULT false NOT NULL,
+    "trail_vote" boolean DEFAULT false NOT NULL,
     CONSTRAINT "vote_log_authorperm_voter" PRIMARY KEY ("authorperm", "voter")
 ) WITH (oids = false);
 
@@ -194,6 +211,7 @@ CREATE TABLE "public"."vote_rules" (
     "include_text" character varying(256),
     "exclude_text" character varying(256),
     "maximum_vote_delay_min" real DEFAULT '-1' NOT NULL,
+    "disable_optimization" boolean DEFAULT false NOT NULL,
     CONSTRAINT "vote_rules_voter_author_main_post" PRIMARY KEY ("voter", "author", "main_post")
 ) WITH (oids = false);
 
@@ -217,4 +235,4 @@ CREATE TABLE "public"."votes" (
 CREATE INDEX "ix_votes_75a831de789ee9f6" ON "public"."votes" USING btree ("authorperm", "voter");
 
 
--- 2019-04-03 15:42:53.610156+02
+-- 2019-04-25 12:35:25.395587+02

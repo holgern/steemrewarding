@@ -220,6 +220,7 @@ class VotesLog(Table):
     performance = Col('curation performance [%]')
     best_vote_delay_min = Col('best vote delay [min]')
     best_performance = Col('best curation [%]')
+    optimized_vote_delay_min = Col('new vote delay [min]')
     allow_sort = True
     def sort_url(self, col_key, reverse=False):
         if col_key in ["authorperm", "author", "vote_weight", "vote_delay_min", "voted_after_min"]:

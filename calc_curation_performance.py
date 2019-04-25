@@ -72,10 +72,20 @@ if __name__ == "__main__":
     b = Blockchain(steem_instance = stm)
     updated_vote_log = []
     voteLogTrx.delete_old_logs(14)
-    for n in range(32):
-        vote_log = voteLogTrx.get_oldest_log()
+    for n in range(16):
+        if n < 4:
+            vote_log = voteLogTrx.get_oldest_log(vote_delay_optimized=True)
+            
+            update_age = (datetime.utcnow() - vote_log["last_update"]).total_seconds() / 60
+            if update_age < 60:
+                vote_log = voteLogTrx.get_oldest_log()
+        else:
+            vote_log = voteLogTrx.get_oldest_log()
+        if vote_log is None:
+            vote_log = voteLogTrx.get_oldest_log()        
         if vote_log is not None:
             authorperm = vote_log["authorperm"]
+            # print(vote_log["authorperm"])
             try:
                 c = Comment(authorperm, steem_instance=stm)
             except:
@@ -92,6 +102,14 @@ if __name__ == "__main__":
                 vote_log["last_update"] = datetime.utcnow()
                 voteLogTrx.update(vote_log)
                 continue
+            
+            age_days = (addTzInfo(datetime.utcnow()) - c["created"]).total_seconds() / 60 / 60 / 24
+            if age_days > 6.5:
+                if vote_log["vote_delay_optimized"]:
+                    vote_log["vote_delay_optimized"] = False
+                    voteLogTrx.update(vote_log)                
+                continue
+            
             performance = 0
             rshares = 0
             for vote in c["active_votes"]:
@@ -102,29 +120,37 @@ if __name__ == "__main__":
                 curation_SBD = curation_rewards_SBD["active_votes"][vote["voter"]]
                 if vote_SBD > 0:
                     performance = (float(curation_SBD) / vote_SBD * 100)
-                    
+            
+            acc_data = accountsDB.get(vote_log["voter"])
+            vote_delay_diff = vote_log["voted_after_min"] - vote_log["vote_delay_min"]  
+            if acc_data is not None:
+                minimum_vote_delay = acc_data["minimum_vote_delay"]
+                maximum_vote_delay = acc_data["maximum_vote_delay"]
+            else:
+                minimum_vote_delay = 0
+                maximum_vote_delay = 6.5 * 24 * 60
             best_performance = 0
             best_vote_delay_min = 0
             for v in c["active_votes"]:
                 v_SBD = stm.rshares_to_sbd(int(v["rshares"]))
-                if v_SBD > 0 and int(v["rshares"]) > rshares * 0.5:
+                
+                if v_SBD > 0 and int(v["rshares"]) > rshares * 0.25:
                     
                     p = float(curation_rewards_SBD["active_votes"][v["voter"]]) / v_SBD * 100
                     if p > best_performance:
                         best_performance = p
                         best_vote_delay_min = ((v["time"]) - c["created"]).total_seconds() / 60
-            acc_data = accountsDB.get(vote_log["voter"])
-            vote_delay_diff = vote_log["voted_after_min"] - vote_log["vote_delay_min"]
-            if acc_data is not None and acc_data["optimize_vote_delay"] and not vote_log["vote_when_vp_reached"] and abs(vote_delay_diff) < 1.0:
-                minimum_vote_delay = acc_data["minimum_vote_delay"]
-                maximum_vote_delay = acc_data["maximum_vote_delay"]
+
+            if acc_data is not None and acc_data["optimize_vote_delay"] and abs(vote_delay_diff) < 1.0 and not vote_log["trail_vote"]:
+
                 optimize_threshold = 1 + (acc_data["optimize_threshold"] / 100)
                 optimize_ma_length = acc_data["optimize_ma_length"]
-                
-                    
+                vote_not_optimized = vote_log["optimized_vote_delay_min"] is None
+                age_min = (addTzInfo(datetime.utcnow()) - c["created"]).total_seconds() / 60 
                 vote_rule = voteRulesTrx.get(vote_log["voter"], c["author"], c.is_main_post())
-                if vote_rule is not None and not vote_rule["disable_optimization"]:
+                if vote_rule is not None and not vote_rule["disable_optimization"] and age_min > maximum_vote_delay + 1 and vote_not_optimized:
                     vote_delay_min = vote_rule["vote_delay_min"]
+                    vote_log["vote_delay_optimized"] = True
                     if best_performance > performance * optimize_threshold and vote_delay_min <= maximum_vote_delay and vote_delay_min >= minimum_vote_delay:
                         if optimize_ma_length > 1:
                             vote_delay_min = (vote_delay_min * (optimize_ma_length - 1) + best_vote_delay_min) / optimize_ma_length
@@ -134,9 +160,17 @@ if __name__ == "__main__":
                             vote_delay_min = maximum_vote_delay
                         elif vote_delay_min < minimum_vote_delay:
                             vote_delay_min = minimum_vote_delay
+                        print("optimize vote %s" % c["authorperm"])
                         voteRulesTrx.update({"voter": vote_log["voter"], "author": c["author"], "main_post": c.is_main_post(),
                                              "vote_delay_min": vote_delay_min})
                         vote_log["optimized_vote_delay_min"] = vote_delay_min
+                        vote_log["vote_delay_optimized"] = False
+                elif vote_rule is not None and not vote_rule["disable_optimization"] and vote_not_optimized:
+                    vote_log["vote_delay_optimized"] = True
+                else:
+                    vote_log["vote_delay_optimized"] = False
+            else:
+                vote_log["vote_delay_optimized"] = False
             
             if best_vote_delay_min > 0:
                 vote_log["best_vote_delay_min"] = best_vote_delay_min
