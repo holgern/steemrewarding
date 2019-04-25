@@ -126,15 +126,17 @@ if __name__ == "__main__":
             if acc_data is not None:
                 minimum_vote_delay = acc_data["minimum_vote_delay"]
                 maximum_vote_delay = acc_data["maximum_vote_delay"]
+                rshares_divider = acc_data["rshares_divider"]
             else:
                 minimum_vote_delay = 0
                 maximum_vote_delay = 6.5 * 24 * 60
+                rshares_divider = 5
             best_performance = 0
             best_vote_delay_min = 0
             for v in c["active_votes"]:
                 v_SBD = stm.rshares_to_sbd(int(v["rshares"]))
                 
-                if v_SBD > 0 and int(v["rshares"]) > rshares * 0.25:
+                if v_SBD > 0 and int(v["rshares"]) > rshares / rshares_divider:
                     
                     p = float(curation_rewards_SBD["active_votes"][v["voter"]]) / v_SBD * 100
                     if p > best_performance:

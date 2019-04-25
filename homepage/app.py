@@ -83,7 +83,7 @@ steemconnect = SteemConnect(client_id="beem.app", scope="login", get_refresh_tok
 # print(config_data)
 databaseConnector = config_data["databaseConnector"]
 wallet_password = config_data["wallet_password"]
-
+frontend = "https://steemit.com/"
 
 def valid_age(post, hours=156):
     """
@@ -95,24 +95,26 @@ def valid_age(post, hours=156):
 
 
 class ExternalURLCol(Col):
-    def __init__(self, name, url_attr, **kwargs):
+    def __init__(self, name, url_attr, frontend, **kwargs):
         self.url_attr = url_attr
+        self.frontend = frontend
         super(ExternalURLCol, self).__init__(name, **kwargs)
 
     def td_contents(self, item, attr_list):
         text = self.from_attr_list(item, attr_list)
         url = self.from_attr_list(item, [self.url_attr])
-        return element('a', {'href': 'https://steemit.com/' + url, 'target': "_blank", 'class': 'table'}, content=text)
+        return element('a', {'href': self.frontend + url, 'target': "_blank", 'class': 'table'}, content=text)
 
 class ExternalAuthorURLCol(Col):
-    def __init__(self, name, url_attr, **kwargs):
+    def __init__(self, name, url_attr, frontend, **kwargs):
         self.url_attr = url_attr
+        self.frontend = frontend
         super(ExternalAuthorURLCol, self).__init__(name, **kwargs)
 
     def td_contents(self, item, attr_list):
         text = self.from_attr_list(item, attr_list)
         url = self.from_attr_list(item, [self.url_attr])
-        return element('a', {'href': 'https://steemit.com/@' + url, 'target': "_blank", 'class': 'table'}, content=text)
+        return element('a', {'href': self.frontend + '@' + url, 'target': "_blank", 'class': 'table'}, content=text)
 
 
 class Results(Table):
@@ -120,7 +122,7 @@ class Results(Table):
     copy = LinkCol('Copy', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post', copy_rule='main_post'), allow_sort = False)
     delete = LinkCol('Delete', 'delete_rule', url_kwargs=dict(author='author', main_post='main_post'), allow_sort = False)
     
-    author = ExternalAuthorURLCol('author', url_attr='author', attr='author', allow_sort = True)
+    author = ExternalAuthorURLCol('author', url_attr='author', attr='author', frontend=frontend, allow_sort = True)
     main_post = BoolCol('main post', allow_sort = False)
     enabled = BoolCol('enabled', allow_sort = False)
     
@@ -209,8 +211,8 @@ class TrailResults(Table):
 
 
 class VotesLog(Table):
-    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', allow_sort=False)
-    author = ExternalAuthorURLCol('author', url_attr='author', attr='author')
+    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', frontend=frontend, allow_sort=False)
+    author = ExternalAuthorURLCol('author', url_attr='author', attr='author', frontend=frontend)
     timestamp = Col('timestamp')
     vote_weight = Col('vote weight [%]')
     vote_delay_min = Col('vote delay [min]')
@@ -231,7 +233,7 @@ class VotesLog(Table):
 
 
 class FailedVotesLog(Table):
-    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm')
+    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', frontend=frontend)
     error = Col("error")
     timestamp = Col('timestamp')
     vote_weight = Col('vote weight')
@@ -248,7 +250,8 @@ class SettingsForm(FlaskForm):
     maximum_vote_delay = FloatField('maximum_vote_delay [min] (defines the maximum vote delay for vote delay optimization, only votes with an initial vote delay which is lower then maximum_vote_delay will be optimized))', default=15)
     optimize_threshold = FloatField('optimize_threshold [%] (A vote delay optimization is only performed when the best vote time differs from the set vote time more than this percentage )', default=5)
     optimize_ma_length = IntegerField('optimize_ma_length (Defines the moving average length, when set to 1, each optimal delay time overwrites direclty the vote delay)', default=20)
-
+    rshares_divider = FloatField('rshares_divider (Defines the lower limit of rshares that are considered for curaiton optimization, vote_rshares > own_votershares / rshares_divider)', default=5)
+    frontend = TextAreaField('Frontend-URL', default="https://steemit.com/")
 
 
 class VoteForm(FlaskForm):
@@ -335,7 +338,7 @@ class TrailRuleForm(FlaskForm):
     
 
 class PendingVotes(Table):
-    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm')
+    authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', frontend=frontend)
     vote_weight = Col('vote weight')
     comment_timestamp = Col('comment timestamp')
     vote_delay_min = Col('vote delay min')
@@ -471,7 +474,8 @@ def settings_dict_from_form(account, form):
 
     settings = {"name": account, "upvote_comment": upvote_comment, "optimize_vote_delay": form.optimize_vote_delay.data,
                 "minimum_vote_delay": form.minimum_vote_delay.data, "maximum_vote_delay": form.maximum_vote_delay.data,
-                "optimize_ma_length": form.optimize_ma_length.data, "optimize_threshold": form.optimize_threshold.data}
+                "optimize_ma_length": form.optimize_ma_length.data, "optimize_threshold": form.optimize_threshold.data,
+                "rshares_divider": form.rshares_divider.data, "frontend": form.frontend.data}
     return settings
 
 def login(func):
@@ -550,11 +554,16 @@ def show_rules():
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteRulesTrx = VoteRulesTrx(db)
         rules = voteRulesTrx.get_posts(name)
+    accountsTrx = AccountsDB(db)    
+    setting = accountsTrx.get(name)       
+    frontend = setting["frontend"]
     try:
         sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
     except:
         sorted_rules = rules    
+        
     table = Results(sorted_rules)
+    table.author.frontend = frontend
     table.border = True
     return render_template('show_rules.html', table=table, user=name)    
 
@@ -592,18 +601,23 @@ def show_vote_log():
     name = steemconnect.me()["name"]
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
     voteLogTrx = VoteLogTrx(db)
-  
+
     try:
         logs = voteLogTrx.get_votes(name)
     except:
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         voteLogTrx = VoteLogTrx(db)
         logs = voteLogTrx.get_votes(name)
+    accountsTrx = AccountsDB(db)    
+    setting = accountsTrx.get(name)
+    frontend = setting["frontend"]
     try:
         sorted_log = sorted(logs, key=lambda x: x[sort] or 0, reverse=reverse)
     except:
         sorted_log = logs
     table = VotesLog(sorted_log)
+    table.authorperm.frontend = frontend
+    table.author.frontend = frontend
     table.border = True
     return render_template('votes_log.html', table=table, user=name)
 
@@ -621,7 +635,11 @@ def show_failed_vote_log():
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         failedVoteLogTrx = FailedVoteLogTrx(db)
         logs = failedVoteLogTrx.get_votes(name)
+    accountsTrx = AccountsDB(db)    
+    setting = accountsTrx.get(name)
+    frontend = setting["frontend"]
     table = FailedVotesLog(logs)
+    table.authorperm.frontend = frontend
     table.border = True
     return render_template('failed_votes_log.html', table=table, user=name)
 
@@ -637,7 +655,11 @@ def show_pending_votes():
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         pendingVotesTrx = PendingVotesTrx(db)
         votes = pendingVotesTrx.get_votes(name)
+    accountsTrx = AccountsDB(db)    
+    setting = accountsTrx.get(name)  
+    frontend = setting["frontend"]
     table = PendingVotes(votes)
+    table.authorperm.frontend = frontend
     table.border = True
     return render_template('pending_votes.html', table=table, user=name)
 
@@ -758,7 +780,7 @@ def settings():
         # save the rule
 
         settings_dict = settings_dict_from_form(name, form)
-
+        frontend = settings_dict["frontend"]
         try:
             accountsTrx.upsert(vote_dict)
         except:
@@ -776,6 +798,8 @@ def settings():
             form.maximum_vote_delay.data = setting["maximum_vote_delay"] 
             form.optimize_ma_length.data = setting["optimize_ma_length"]
             form.optimize_threshold.data = setting["optimize_threshold"]
+            form.rshares_divider.data = setting["rshares_divider"]
+            form.frontend.data = setting["frontend"]
         return render_template('settings.html', form=form, user=name)
 
 
