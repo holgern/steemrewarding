@@ -147,6 +147,7 @@ class Results(Table):
 
     include_text = Col('include text', allow_sort = False)
     exclude_text = Col('exclude text', allow_sort = False)
+    note = Col('note', allow_sort = False)
     exclude_declined_payout = BoolCol('exclude declined payout', allow_sort = False)
     
     max_net_votes = Col('max net votes', allow_sort = False)
@@ -195,6 +196,7 @@ class TrailResults(Table):
     exclude_authors = Col('exclude authors', allow_sort = False)    
     include_tags = Col('include tags', allow_sort = False)
     exclude_tags = Col('exclude tags', allow_sort = False)
+    note = Col('note', allow_sort = False)
 
     exclude_declined_payout = BoolCol('exclude declined payout', allow_sort = False)
     max_net_votes = Col('max. net votes', allow_sort = False)
@@ -252,6 +254,7 @@ class SettingsForm(FlaskForm):
     optimize_ma_length = IntegerField('optimize_ma_length (Defines the moving average length, when set to 1, each optimal delay time overwrites direclty the vote delay)', default=20)
     rshares_divider = FloatField('rshares_divider (Defines the lower limit of rshares that are considered for curaiton optimization, vote_rshares > own_votershares / rshares_divider)', default=5)
     frontend = TextAreaField('Frontend-URL', default="https://steemit.com/")
+    sliding_time_window = BooleanField('sliding_time_window (When true, votes for max_votes_per_day are counting for the last 24 hours, When False, votes for max_votes_per_day are counted from 0:0:0 UTC, some is done for max_votes_per_week)', default=True)
 
 
 class VoteForm(FlaskForm):
@@ -299,6 +302,7 @@ class RuleForm(FlaskForm):
     include_text = TextAreaField('include_text (When set, only posts/comments containing the given string are upvoted)')
     exclude_text = TextAreaField('exclude_text (When set, posts/comments containing the given string are not upvoted)')
     disable_optimization = BooleanField('disable_optimization (When true, the vote delay of this entry is not optimized')
+    note = TextAreaField("Note (You can leave a note here, it has no influence to the rule)")
 
 class TrailRuleForm(FlaskForm):
 
@@ -335,6 +339,7 @@ class TrailRuleForm(FlaskForm):
     exclude_declined_payout = BooleanField('exclude_declined_payout', default=True)
     max_net_votes = IntegerField('max_net_votes', default=-1)
     max_pending_payout = FloatField('max_pending_payout', default=-1.0)
+    note = TextAreaField("Note (You can leave a note here, it has no influence to the rule)")
     
 
 class PendingVotes(Table):
@@ -383,6 +388,7 @@ def set_form(form, rule):
     form.include_text.data = rule["include_text"]
     form.exclude_text.data = rule["exclude_text"]
     form.disable_optimization.data = rule["disable_optimization"]
+    form.note.data = rule["note"]
     return form
 
 
@@ -409,6 +415,7 @@ def set_form_trail_votes(form, rule):
     form.max_net_votes.data = rule["max_net_votes"]
     form.max_pending_payout.data = rule["max_pending_payout"]
     form.vp_scaler.data = rule["vp_scaler"]
+    form.note.data = rule["note"]
     return form
 
 
@@ -428,7 +435,7 @@ def rule_dict_from_form(voter, form):
             "minimum_word_count": form.minimum_word_count.data, "include_apps": form.include_apps.data, "exclude_apps": form.exclude_apps.data,
             "exclude_declined_payout": form.exclude_declined_payout.data, "max_net_votes": form.max_net_votes.data,
             "max_pending_payout": form.max_pending_payout.data, "include_text": form.include_text.data, "exclude_text": form.exclude_text.data,
-            "disable_optimization": form.disable_optimization.data}
+            "disable_optimization": form.disable_optimization.data, "note": form.note.data}
 
     return rule
 
@@ -447,7 +454,7 @@ def trail_rule_dict_from_form(account, form):
             "exclude_tags": form.exclude_tags.data, "exclude_declined_payout": form.exclude_declined_payout.data,
             "minimum_vote_delay_min": form.minimum_vote_delay_min.data, "exclude_authors_with_vote_rule": form.exclude_authors_with_vote_rule.data,
             "maximum_vote_delay_min": form.maximum_vote_delay_min.data, "enabled": form.enabled.data, "max_net_votes": form.max_net_votes.data,
-            "max_pending_payout": form.max_pending_payout.data, "vp_scaler": form.vp_scaler.data}
+            "max_pending_payout": form.max_pending_payout.data, "vp_scaler": form.vp_scaler.data, "note": form.note.data}
 
     return rule
 
@@ -475,7 +482,7 @@ def settings_dict_from_form(account, form):
     settings = {"name": account, "upvote_comment": upvote_comment, "optimize_vote_delay": form.optimize_vote_delay.data,
                 "minimum_vote_delay": form.minimum_vote_delay.data, "maximum_vote_delay": form.maximum_vote_delay.data,
                 "optimize_ma_length": form.optimize_ma_length.data, "optimize_threshold": form.optimize_threshold.data,
-                "rshares_divider": form.rshares_divider.data, "frontend": form.frontend.data}
+                "rshares_divider": form.rshares_divider.data, "frontend": form.frontend.data, "sliding_time_window": form.sliding_time_window.data}
     return settings
 
 def login(func):
@@ -555,8 +562,11 @@ def show_rules():
         voteRulesTrx = VoteRulesTrx(db)
         rules = voteRulesTrx.get_posts(name)
     accountsTrx = AccountsDB(db)    
-    setting = accountsTrx.get(name)       
-    frontend = setting["frontend"]
+    setting = accountsTrx.get(name)
+    if setting is None:
+        frontend = "https://steemit.com/"
+    else:
+        frontend = setting["frontend"]
     try:
         sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
     except:
@@ -610,7 +620,10 @@ def show_vote_log():
         logs = voteLogTrx.get_votes(name)
     accountsTrx = AccountsDB(db)    
     setting = accountsTrx.get(name)
-    frontend = setting["frontend"]
+    if setting is None:
+        frontend = "https://steemit.com/"
+    else:
+        frontend = setting["frontend"]    
     try:
         sorted_log = sorted(logs, key=lambda x: x[sort] or 0, reverse=reverse)
     except:
@@ -637,7 +650,10 @@ def show_failed_vote_log():
         logs = failedVoteLogTrx.get_votes(name)
     accountsTrx = AccountsDB(db)    
     setting = accountsTrx.get(name)
-    frontend = setting["frontend"]
+    if setting is None:
+        frontend = "https://steemit.com/"
+    else:
+        frontend = setting["frontend"]    
     table = FailedVotesLog(logs)
     table.authorperm.frontend = frontend
     table.border = True
@@ -657,7 +673,10 @@ def show_pending_votes():
         votes = pendingVotesTrx.get_votes(name)
     accountsTrx = AccountsDB(db)    
     setting = accountsTrx.get(name)  
-    frontend = setting["frontend"]
+    if setting is None:
+        frontend = "https://steemit.com/"
+    else:
+        frontend = setting["frontend"]    
     table = PendingVotes(votes)
     table.authorperm.frontend = frontend
     table.border = True
@@ -800,6 +819,7 @@ def settings():
             form.optimize_threshold.data = setting["optimize_threshold"]
             form.rshares_divider.data = setting["rshares_divider"]
             form.frontend.data = setting["frontend"]
+            form.sliding_time_window.data = setting["sliding_time_window"]
         return render_template('settings.html', form=form, user=name)
 
 

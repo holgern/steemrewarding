@@ -74,6 +74,7 @@ if __name__ == "__main__":
     vote_count = 0
     delete_pending_votes = []
     for pending_vote in pendingVotesTrx.get_command_list_timed():
+        settings = None
         # print("time vote %.2f s - %d votes" % (time.time() - start_prep_time, vote_count))
         if (pending_vote["vote_weight"] is None or pending_vote["vote_weight"] <= 0) and (pending_vote["vote_sbd"] is None or float(pending_vote["vote_sbd"]) <= 0):
             voter_acc = Account(pending_vote["voter"], steem_instance=stm)
@@ -150,21 +151,36 @@ if __name__ == "__main__":
             continue
         # check for max votes per day/week
         author, permlink = resolve_authorperm(pending_vote["authorperm"])
-        votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"], author)
-        if pending_vote["max_votes_per_day"] > -1 and votes_24h_before >= pending_vote["max_votes_per_day"]:
-            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
-                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
-                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                
-            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-            continue
+        if pending_vote["max_votes_per_day"] > -1:
+            if settings is None:
+                settings = accountsTrx.get(voter_acc["name"])
+            if settings is not None:
+                sliding_time_window = settings["sliding_time_window"]
+            else:
+                sliding_time_window = True
+            votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"], author, sliding_time_window)
+            if votes_24h_before >= pending_vote["max_votes_per_day"]:
+                failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
+                                      "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                      "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+                continue
         author, permlink = resolve_authorperm(pending_vote["authorperm"])
-        votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"], author)
-        if pending_vote["max_votes_per_week"] > -1 and votes_168h_before >= pending_vote["max_votes_per_week"]:
-            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
-                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
-                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
-            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-            continue               
+        
+        if pending_vote["max_votes_per_week"] > -1:
+            if settings is None:
+                settings = accountsTrx.get(voter_acc["name"])
+            if settings is not None:
+                sliding_time_window = settings["sliding_time_window"]            
+            else:
+                sliding_time_window = True
+            votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"], author, sliding_time_window)
+            if votes_168h_before >= pending_vote["max_votes_per_week"]:
+                failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
+                                      "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                      "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})                  
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+                continue               
         
         if voter_acc.vp < pending_vote["min_vp"]:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Voting power is %.2f %%, which is to low. (min_vp is %.2f %%)" % (voter_acc.vp, pending_vote["min_vp"]),
@@ -210,7 +226,8 @@ if __name__ == "__main__":
             vote_count += 1
             if pending_vote["leave_comment"]:
                 try:
-                    settings = accountsTrx.get(voter_acc["name"])
+                    if settings is None:
+                        settings = accountsTrx.get(voter_acc["name"])
                     if settings is not None and "upvote_comment" in settings:
                         json_metadata = {'app': 'rewarding/%s' % (rewarding_version)}
                         reply_body = settings["upvote_comment"]
@@ -232,6 +249,7 @@ if __name__ == "__main__":
     print("time vote %.2f s - %d votes" % (time.time() - start_prep_time, vote_count))
     
     for pending_vote in pendingVotesTrx.get_command_list_vp_reached():
+        settings = None
         if (pending_vote["vote_weight"] is None or pending_vote["vote_weight"] <= 0) and (pending_vote["vote_sbd"] is None or float(pending_vote["vote_sbd"]) <= 0):
             voter_acc = Account(pending_vote["voter"], steem_instance=stm)
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "vote_weight was set to zero.",
@@ -301,21 +319,37 @@ if __name__ == "__main__":
             continue        
         
         author, permlink = resolve_authorperm(pending_vote["authorperm"])
-        votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"], author)
-        if pending_vote["max_votes_per_day"] > -1 and votes_24h_before >= pending_vote["max_votes_per_day"]:
-            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
-                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
-                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})              
-            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-            continue
+        
+        if pending_vote["max_votes_per_day"] > -1:
+            if settings is None:
+                settings = accountsTrx.get(voter_acc["name"])
+            if settings is not None:
+                sliding_time_window = settings["sliding_time_window"]  
+            else:
+                sliding_time_window = True
+            votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"], author, sliding_time_window)
+            if votes_24h_before >= pending_vote["max_votes_per_day"]:
+                failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
+                                      "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                      "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})              
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+                continue
         author, permlink = resolve_authorperm(pending_vote["authorperm"])
-        votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"], author)
-        if pending_vote["max_votes_per_week"] > -1 and votes_168h_before >= pending_vote["max_votes_per_week"]:
-            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
-                                  "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
-                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            
-            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-            continue        
+        
+        if pending_vote["max_votes_per_week"] > -1:
+            if settings is None:
+                settings = accountsTrx.get(voter_acc["name"])
+            if settings is not None:
+                sliding_time_window = settings["sliding_time_window"]            
+            else:
+                sliding_time_window = True
+            votes_168h_before = voteLogTrx.get_votes_per_week(pending_vote["voter"], author, sliding_time_window)
+            if votes_168h_before >= pending_vote["max_votes_per_week"]:
+                failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 7 days (max_votes_per_week is %d)." % (votes_168h_before, pending_vote["max_votes_per_week"]),
+                                      "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
+                                      "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})            
+                delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+                continue        
         posting_auth = False
         for a in voter_acc["posting"]["account_auths"]:
             if a[0] == posting_auth_acc:
@@ -352,7 +386,8 @@ if __name__ == "__main__":
             vote_count += 1
             if pending_vote["leave_comment"]:
                 try:
-                    settings = accountsTrx.get(voter_acc["name"])
+                    if settings is None:
+                        settings = accountsTrx.get(voter_acc["name"])
                     if settings is not None and "upvote_comment" in settings:
                         json_metadata = {'app': 'rewarding/%s' % (rewarding_version)}
                         reply_body = settings["upvote_comment"]

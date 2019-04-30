@@ -127,6 +127,8 @@ if __name__ == "__main__":
                 minimum_vote_delay = acc_data["minimum_vote_delay"]
                 maximum_vote_delay = acc_data["maximum_vote_delay"]
                 rshares_divider = acc_data["rshares_divider"]
+                if rshares_divider <= 0:
+                    rshares_divider = 5
             else:
                 minimum_vote_delay = 0
                 maximum_vote_delay = 6.5 * 24 * 60

@@ -118,18 +118,24 @@ class VoteLogTrx(object):
         date_before = datetime.utcnow() - timedelta(minutes=min_age)
         return table.find_one(table.table.columns.timestamp < date_before, vote_delay_optimized=vote_delay_optimized, order_by='last_update')    
 
-    def get_votes_per_day(self, voter, author):
+    def get_votes_per_day(self, voter, author, sliding_window=True):
         table = self.db[self.__tablename__]
-        # today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        date_24h_before = datetime.utcnow() - timedelta(hours=24)
+        
+        if sliding_window:
+            date_24h_before = datetime.utcnow() - timedelta(hours=24)
+        else:
+            date_24h_before = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         votes = 0
         for v in table.find(table.table.columns.timestamp > date_24h_before, author=author, voter=voter):
             votes += 1
         return votes
 
-    def get_votes_per_week(self, voter, author):
+    def get_votes_per_week(self, voter, author, sliding_window=True):
         table = self.db[self.__tablename__]
-        date_168h_before = datetime.utcnow() - timedelta(hours=168)
+        if sliding_window:
+            date_168h_before = datetime.utcnow() - timedelta(hours=168)
+        else:
+            date_168h_before = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=168)
         votes = 0
         for v in table.find(table.table.columns.timestamp > date_168h_before, author=author, voter=voter):
             votes += 1
