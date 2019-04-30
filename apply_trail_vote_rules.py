@@ -149,8 +149,8 @@ if __name__ == "__main__":
                                 "vote_delay_min": rule["minimum_vote_delay_min"], "created": datetime.utcnow(), "min_vp": rule["min_vp"], "vote_when_vp_reached": rule["vote_when_vp_reached"],
                                 "vp_reached_order": rule["vp_reached_order"], "max_net_votes": rule["max_net_votes"], "max_pending_payout": rule["max_pending_payout"],
                                 "max_votes_per_day": rule["max_votes_per_day"], "max_votes_per_week": rule["max_votes_per_week"], "vp_scaler": rule["vp_scaler"], "leave_comment": False,
-                                "maximum_vote_delay_min": rule["maximum_vote_delay_min"], "vote_sbd": rule["vote_sbd"],
-                                "trail_vote": True}
+                                "maximum_vote_delay_min": rule["maximum_vote_delay_min"], "vote_sbd": rule["vote_sbd"], "vote_delay_scaler": rule["vote_delay_scaler"],
+                                "trail_vote": True, "voter_to_follow": rule["voter_to_follow"]}
                 pendingVotesTrx.add(pending_vote)
 
     confStorage.update({"last_vote": last_vote})

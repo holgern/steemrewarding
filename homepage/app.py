@@ -134,7 +134,7 @@ class Results(Table):
     max_votes_per_day = Col('max. votes per day', allow_sort = True)
     max_votes_per_week = Col('max. votes per week', allow_sort = True)
     min_vp = Col('min. vp [%]', allow_sort = True)
-    vp_scaler = Col('vp scaler', allow_sort = False)    
+    vp_scaler = Col('vp scaler', allow_sort = False)
     vote_when_vp_reached = BoolCol('vote when vp reached', allow_sort = False)
     vp_reached_order = Col('vp reached order', allow_sort = False)
 
@@ -213,6 +213,7 @@ class TrailResults(Table):
 
 
 class VotesLog(Table):
+    edit = LinkCol('Edit', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post', voter_to_follow='voter_to_follow'), allow_sort = False)
     authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', frontend=frontend, allow_sort=False)
     author = ExternalAuthorURLCol('author', url_attr='author', attr='author', frontend=frontend)
     timestamp = Col('timestamp')
@@ -250,6 +251,7 @@ class SettingsForm(FlaskForm):
     optimize_vote_delay = BooleanField('optimize_vote_delay (When true, vote delay of time based vote rules will be optimized)', default=False)
     minimum_vote_delay = FloatField('minimum_vote_delay [min] (defines the minimum vote delay for vote delay optimization, only votes with an initial vote delay which is higher then minimum_vote_delay will be optimized)', default=3)
     maximum_vote_delay = FloatField('maximum_vote_delay [min] (defines the maximum vote delay for vote delay optimization, only votes with an initial vote delay which is lower then maximum_vote_delay will be optimized))', default=15)
+    optimize_vote_delay_slope = FloatField('optimize_vote_delay_slope [%/min] (Changes the vote weight during optimization depending on the new vote delay. When it is set to 1 %/min, the weight is decreasing by 1% for every minute the delay is decreasing.)', default=0)
     optimize_threshold = FloatField('optimize_threshold [%] (A vote delay optimization is only performed when the best vote time differs from the set vote time more than this percentage )', default=5)
     optimize_ma_length = IntegerField('optimize_ma_length (Defines the moving average length, when set to 1, each optimal delay time overwrites direclty the vote delay)', default=20)
     rshares_divider = FloatField('rshares_divider (Defines the lower limit of rshares that are considered for curaiton optimization, vote_rshares > own_votershares / rshares_divider)', default=5)
@@ -482,7 +484,8 @@ def settings_dict_from_form(account, form):
     settings = {"name": account, "upvote_comment": upvote_comment, "optimize_vote_delay": form.optimize_vote_delay.data,
                 "minimum_vote_delay": form.minimum_vote_delay.data, "maximum_vote_delay": form.maximum_vote_delay.data,
                 "optimize_ma_length": form.optimize_ma_length.data, "optimize_threshold": form.optimize_threshold.data,
-                "rshares_divider": form.rshares_divider.data, "frontend": form.frontend.data, "sliding_time_window": form.sliding_time_window.data}
+                "rshares_divider": form.rshares_divider.data, "frontend": form.frontend.data, "sliding_time_window": form.sliding_time_window.data,
+                "optimize_vote_delay_slope": form.optimize_vote_delay_slope.data}
     return settings
 
 def login(func):
@@ -820,6 +823,7 @@ def settings():
             form.rshares_divider.data = setting["rshares_divider"]
             form.frontend.data = setting["frontend"]
             form.sliding_time_window.data = setting["sliding_time_window"]
+            form.optimize_vote_delay_slope.data = setting["optimize_vote_delay_slope"]
         return render_template('settings.html', form=form, user=name)
 
 
@@ -912,6 +916,11 @@ def edit_rule():
     author = request.args.get("author", None)
     main_post = request.args.get("main_post", None)
     copy_rule = request.args.get("copy_rule", None)
+    voter_to_follow = request.args.get("voter_to_follow", None)
+    if voter_to_follow is not None:
+        return redirect('/edit_trail_rule?voter_to_follow=%s' % voter_to_follow)
+    elif main_post is None or author is None:
+        return redirect('/show_vote_log')
     if copy_rule is None or not copy_rule:
         helptext = "Editing author and/or main_post will delete the original rule and create a new rule with the new author/main_post flag."
     else:
@@ -968,6 +977,8 @@ def edit_trail_rule():
     trailVoteRulesTrx = TrailVoteRulesTrx(db)    
     voter_to_follow = request.args.get("voter_to_follow", None)
     copy_rule = request.args.get("copy_rule", None)
+    if voter_to_follow is None:
+        return redirect('/show_vote_log')
     if copy_rule is None or not copy_rule:
         helptext = "Editing voter_to_follow will delete the original rule and create a new rule with the new voter_to_follow."
     else:

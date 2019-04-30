@@ -154,6 +154,7 @@ if __name__ == "__main__":
                 vote_rule = voteRulesTrx.get(vote_log["voter"], c["author"], c.is_main_post())
                 if vote_rule is not None and not vote_rule["disable_optimization"] and age_min > maximum_vote_delay + 1 and vote_not_optimized:
                     vote_delay_min = vote_rule["vote_delay_min"]
+                    old_vote_delay_min = vote_rule["vote_delay_min"]
                     vote_log["vote_delay_optimized"] = True
                     if best_performance > performance * optimize_threshold and vote_delay_min <= maximum_vote_delay and vote_delay_min >= minimum_vote_delay:
                         if optimize_ma_length > 1:
@@ -164,9 +165,17 @@ if __name__ == "__main__":
                             vote_delay_min = maximum_vote_delay
                         elif vote_delay_min < minimum_vote_delay:
                             vote_delay_min = minimum_vote_delay
+                        vote_weight = vote_log["vote_weight"]
+                        if acc_data["optimize_vote_delay_slope"] != 0 and vote_log["vote_weight"] > 0:
+                            vote_weight = vote_weight + (vote_delay_min - old_vote_delay_min) * acc_data["optimize_vote_delay_slope"]
+                            if vote_weight < 0:
+                                vote_weight = 0
+                            if vote_weight > 100:
+                                vote_weight = 100
+                            
                         print("optimize vote %s" % c["authorperm"])
                         voteRulesTrx.update({"voter": vote_log["voter"], "author": c["author"], "main_post": c.is_main_post(),
-                                             "vote_delay_min": vote_delay_min})
+                                             "vote_delay_min": vote_delay_min, "vote_weight": vote_weight})
                         vote_log["optimized_vote_delay_min"] = vote_delay_min
                         vote_log["vote_delay_optimized"] = False
                 elif vote_rule is not None and not vote_rule["disable_optimization"] and vote_not_optimized:

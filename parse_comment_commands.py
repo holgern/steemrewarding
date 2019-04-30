@@ -135,8 +135,10 @@ if __name__ == "__main__":
             
             authorperm = construct_authorperm(rewarding_account, permlink)
             comment_timestamp = datetime.utcnow()
+            main_post = False
         else:
             authorperm = c["authorperm"]
+            main_post = c.is_main_post()
             comment_timestamp = c["created"].replace(tzinfo=None)
         
         if command["valid"] and posting_auth:
@@ -144,7 +146,7 @@ if __name__ == "__main__":
             pending_vote = {"authorperm": authorperm, "voter": voter, "vote_weight": vote_weight, "vote_sbd": vote_sbd, "comment_timestamp": comment_timestamp,
                             "vote_delay_min": vote_delay_min, "created": datetime.utcnow(), "min_vp": 0, "vote_when_vp_reached": True,
                             "vp_reached_order": 1, "max_net_votes": -1, "max_pending_payout": -1, "exclude_declined_payout": False,
-                            "max_votes_per_day": -1, "max_votes_per_week": -1, "vp_scaler": 0, "leave_comment": False}
+                            "max_votes_per_day": -1, "max_votes_per_week": -1, "vp_scaler": 0, "leave_comment": False, "main_post": main_post}
             pendingVotesTrx.add(pending_vote)
             pendingVotesTrx.add({"authorperm": c_comment["authorperm"], "voter": rewarding_account, "vote_weight": 5, "comment_timestamp": c_comment["created"].replace(tzinfo=None),
                                  "vote_delay_min": 0, "created": datetime.utcnow(), "min_vp": 0, "vote_when_vp_reached": False,

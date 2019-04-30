@@ -13,6 +13,10 @@ CREATE TABLE "public"."accounts" (
     "maximum_vote_delay" real DEFAULT '15' NOT NULL,
     "optimize_ma_length" integer DEFAULT '20' NOT NULL,
     "optimize_threshold" real DEFAULT '5' NOT NULL,
+    "rshares_divider" real DEFAULT '5' NOT NULL,
+    "frontend" character varying(1024) DEFAULT 'https://steemit.com/' NOT NULL,
+    "sliding_time_window" boolean DEFAULT true NOT NULL,
+    "optimize_vote_delay_slope" real DEFAULT '0' NOT NULL,
     CONSTRAINT "accounts_name" PRIMARY KEY ("name")
 ) WITH (oids = false);
 
@@ -59,6 +63,9 @@ CREATE TABLE "public"."failed_vote_log" (
     "min_vp" real,
     "vp" real,
     "vote_when_vp_reached" boolean,
+    "main_post" boolean,
+    "voter_to_follow" character varying(16),
+    "author" character varying(16),
     CONSTRAINT "failed_vote_log_authorperm_voter" PRIMARY KEY ("authorperm", "voter")
 ) WITH (oids = false);
 
@@ -87,6 +94,9 @@ CREATE TABLE "public"."pending_votes" (
     "maximum_vote_delay_min" real DEFAULT '-1' NOT NULL,
     "vote_sbd" real DEFAULT '0',
     "trail_vote" boolean DEFAULT false NOT NULL,
+    "vote_delay_scaler" real DEFAULT '0' NOT NULL,
+    "main_post" boolean,
+    "voter_to_follow" character varying(16),
     CONSTRAINT "pending_votes_authorperm_voter_vote_when_vp_reached" PRIMARY KEY ("authorperm", "voter", "vote_when_vp_reached")
 ) WITH (oids = false);
 
@@ -151,6 +161,8 @@ CREATE TABLE "public"."trail_vote_rules" (
     "vp_reached_order" smallint DEFAULT '1' NOT NULL,
     "vote_sbd" real DEFAULT '0' NOT NULL,
     "exclude_authors_with_vote_rule" boolean DEFAULT false NOT NULL,
+    "note" character varying(1024),
+    "vote_delay_scaler" real DEFAULT '0' NOT NULL,
     CONSTRAINT "trail_vote_rules_voter_account" PRIMARY KEY ("voter_to_follow", "account")
 ) WITH (oids = false);
 
@@ -176,6 +188,8 @@ CREATE TABLE "public"."vote_log" (
     "optimized_vote_delay_min" real,
     "vote_delay_optimized" boolean DEFAULT false NOT NULL,
     "trail_vote" boolean DEFAULT false NOT NULL,
+    "main_post" boolean,
+    "voter_to_follow" character varying(16),
     CONSTRAINT "vote_log_authorperm_voter" PRIMARY KEY ("authorperm", "voter")
 ) WITH (oids = false);
 
@@ -212,6 +226,7 @@ CREATE TABLE "public"."vote_rules" (
     "exclude_text" character varying(256),
     "maximum_vote_delay_min" real DEFAULT '-1' NOT NULL,
     "disable_optimization" boolean DEFAULT false NOT NULL,
+    "note" character varying(1024),
     CONSTRAINT "vote_rules_voter_author_main_post" PRIMARY KEY ("voter", "author", "main_post")
 ) WITH (oids = false);
 
@@ -235,4 +250,4 @@ CREATE TABLE "public"."votes" (
 CREATE INDEX "ix_votes_75a831de789ee9f6" ON "public"."votes" USING btree ("authorperm", "voter");
 
 
--- 2019-04-25 12:35:25.395587+02
+-- 2019-04-30 14:24:07.886956+00
