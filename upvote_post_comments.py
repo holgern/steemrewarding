@@ -90,7 +90,7 @@ if __name__ == "__main__":
         maximum_vote_delay_min = pending_vote["maximum_vote_delay_min"]
         if maximum_vote_delay_min < 0:
             maximum_vote_delay_min = 9360
-        if age_min > maximum_vote_delay_min:
+        if age_min > maximum_vote_delay_min + voting_round_sec / 60:
             voter_acc = Account(pending_vote["voter"], steem_instance=stm)
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than %.2f min." % (maximum_vote_delay_min),
                                   "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
@@ -284,7 +284,7 @@ if __name__ == "__main__":
             continue            
         age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
         maximum_vote_delay_min = pending_vote["maximum_vote_delay_min"]
-        if maximum_vote_delay_min > 0 and age_min > maximum_vote_delay_min:
+        if maximum_vote_delay_min > 0 and age_min > maximum_vote_delay_min + voting_round_sec / 60:
             voter_acc = Account(pending_vote["voter"], steem_instance=stm)
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than %.2f min." % (maximum_vote_delay_min),
                                   "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],

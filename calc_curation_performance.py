@@ -156,7 +156,7 @@ if __name__ == "__main__":
                     vote_delay_min = vote_rule["vote_delay_min"]
                     old_vote_delay_min = vote_rule["vote_delay_min"]
                     vote_log["vote_delay_optimized"] = True
-                    if best_performance > performance * optimize_threshold and vote_delay_min <= maximum_vote_delay and vote_delay_min >= minimum_vote_delay:
+                    if best_performance > performance * optimize_threshold and vote_delay_min <= maximum_vote_delay + 0.1 and vote_delay_min >= minimum_vote_delay -0.1:
                         if optimize_ma_length > 1:
                             vote_delay_min = (vote_delay_min * (optimize_ma_length - 1) + best_vote_delay_min) / optimize_ma_length
                         else:
