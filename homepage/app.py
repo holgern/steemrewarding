@@ -646,11 +646,11 @@ def show_failed_vote_log():
     failedVoteLogTrx = FailedVoteLogTrx(db)
    
     try:
-        logs = failedVoteLogTrx.get_votes(name)
+        logs = failedVoteLogTrx.get_votes(name, limit=100)
     except:
         db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
         failedVoteLogTrx = FailedVoteLogTrx(db)
-        logs = failedVoteLogTrx.get_votes(name)
+        logs = failedVoteLogTrx.get_votes(name, limit=100)
     accountsTrx = AccountsDB(db)    
     setting = accountsTrx.get(name)
     if setting is None:
@@ -935,6 +935,12 @@ def edit_rule():
         form = RuleForm(formdata=request.form)
         if request.method == 'POST': # and form.validate():
             rule_dict = rule_dict_from_form(name, form)
+            if rule_dict["author"] == "":
+                return redirect('/show_rules')
+            if rule_dict["author"][0] == '@':
+                rule_dict["author"] = rule_dict["author"][1:]
+            if len(rule_dict["author"]) > 16:
+                return redirect('/show_rules')
             if rule_dict["author"] != author or rule_dict["main_post"] != main_post:
                 if copy_rule is None or not copy_rule:
                     voteRulesTrx.delete(name, author, main_post)

@@ -7,6 +7,7 @@ from builtins import bytes, int, str
 from future.utils import python_2_unicode_compatible
 from datetime import date, datetime, timedelta
 import time
+import math
 
 
 def isfloat(value):
@@ -44,6 +45,11 @@ def upvote_comment(c_comment, acc_vote_name, acc_vote_weight):
             print("retry to vote %s from %s" % (c_comment["authorperm"], acc_vote_name))
             print(type(inst))
             print(inst)
+            time.sleep(3)
+            c_comment.refresh()
+            for v in c_comment["active_votes"]:
+                if acc_vote_name == v["voter"]:
+                    vote_sucessfull = True            
           
         cnt += 1
     return vote_sucessfull
@@ -114,3 +120,26 @@ def string_included(include_rule, string):
                 include = True
         return include
     return True
+
+def approx_sqrt_v1(x):
+    if x <= 1:
+        return x
+    # mantissa_bits, leading_1, mantissa_mask are independent of x
+    msb_x = x.bit_length() - 1
+    msb_z = msb_x >> 1
+    msb_x_bit = 1 << msb_x
+    msb_z_bit = 1 << msb_z
+    mantissa_mask = msb_x_bit-1
+
+    mantissa_x = x & mantissa_mask
+    if (msb_x & 1) != 0:
+        mantissa_z_hi = msb_z_bit
+    else:
+        mantissa_z_hi = 0
+    mantissa_z_lo = mantissa_x >> (msb_x - msb_z)
+    mantissa_z = (mantissa_z_hi | mantissa_z_lo) >> 1
+    result = msb_z_bit | mantissa_z
+    return result
+
+def curation_performance(rshares_before, rshares_vote, rshares_after):
+    return (approx_sqrt_v1(rshares_before + rshares_vote) - approx_sqrt_v1(rshares_before)) / (approx_sqrt_v1(rshares_before + rshares_vote + rshares_after))

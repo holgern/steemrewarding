@@ -90,13 +90,18 @@ class FailedVoteLogTrx(object):
         table = self.db[self.__tablename__]
         return table.find_one(authorperm=authorperm, voter=voter)
 
-    def get_votes(self, voter, hours=168):
+    def get_votes(self, voter, hours=168, limit=-1):
         table = self.db[self.__tablename__]
         # today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         date_before = datetime.utcnow() - timedelta(hours=hours)
         votes = []
-        for v in table.find(table.table.columns.timestamp > date_before, voter=voter, order_by='-timestamp'):
-            votes.append(v)
+        if limit > 0:
+            
+            for v in table.find(table.table.columns.timestamp > date_before, voter=voter, order_by='-timestamp', _limit=limit):
+                votes.append(v)
+        else:
+            for v in table.find(table.table.columns.timestamp > date_before, voter=voter, order_by='-timestamp'):
+                votes.append(v)            
         return votes
 
     def get_votes_per_day(self, voter):

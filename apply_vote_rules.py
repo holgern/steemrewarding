@@ -120,7 +120,10 @@ if __name__ == "__main__":
         
         if len(fitting_rules) == 0:
             continue
-        c = Comment(authorperm, steem_instance=stm)
+        try:
+            c = Comment(authorperm, steem_instance=stm)
+        except:
+            continue
         voters = []
         for v in c["active_votes"]:
             voters.append(v["voter"])

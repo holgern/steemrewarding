@@ -98,7 +98,11 @@ if __name__ == "__main__":
         if len(rules) == 0:
             continue
         fitting_rules = []
-        post = Comment(authorperm, steem_instance=stm)
+        try:
+            post = Comment(authorperm, steem_instance=stm)
+        except:
+            print("Could not parse %s" % authorperm)
+            continue
         for rule in rules:
             # print(rule)
             if not string_included(rule["include_authors"], post["author"]):

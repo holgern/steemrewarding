@@ -6,6 +6,7 @@ from beem.account import Account
 from datetime import datetime, timedelta
 from beem.instance import set_shared_steem_instance
 from beem.blockchain import Blockchain
+from beem.vote import AccountVotes, ActiveVotes
 import time 
 import json
 import os
@@ -24,7 +25,7 @@ from steemrewarding.vote_storage import VotesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
 from steemrewarding.account_storage import AccountsDB
-from steemrewarding.utils import isfloat, upvote_comment, valid_age
+from steemrewarding.utils import isfloat, upvote_comment, valid_age, curation_performance
 from steemrewarding.version import version as rewardingversion
 import dataset
 
@@ -72,7 +73,8 @@ if __name__ == "__main__":
     b = Blockchain(steem_instance = stm)
     updated_vote_log = []
     voteLogTrx.delete_old_logs(14)
-    for n in range(16):
+    
+    for n in range(32):
         if n < 4:
             vote_log = voteLogTrx.get_oldest_log(vote_delay_optimized=True)
             
@@ -86,6 +88,8 @@ if __name__ == "__main__":
         if vote_log is not None:
             authorperm = vote_log["authorperm"]
             # print(vote_log["authorperm"])
+            if n == 15:
+                print("performance vote last  update %s" % str(vote_log["last_update"]))
             try:
                 c = Comment(authorperm, steem_instance=stm)
             except:
@@ -108,19 +112,7 @@ if __name__ == "__main__":
                 if vote_log["vote_delay_optimized"]:
                     vote_log["vote_delay_optimized"] = False
                     voteLogTrx.update(vote_log)                
-                continue
-            
-            performance = 0
-            rshares = 0
-            for vote in c["active_votes"]:
-                if vote["voter"] != vote_log["voter"]:
-                    continue
-                rshares = int(vote["rshares"])
-                vote_SBD = stm.rshares_to_sbd(rshares)
-                curation_SBD = curation_rewards_SBD["active_votes"][vote["voter"]]
-                if vote_SBD > 0:
-                    performance = (float(curation_SBD) / vote_SBD * 100)
-            
+                
             acc_data = accountsDB.get(vote_log["voter"])
             vote_delay_diff = vote_log["voted_after_min"] - vote_log["vote_delay_min"]  
             if acc_data is not None:
@@ -132,18 +124,62 @@ if __name__ == "__main__":
             else:
                 minimum_vote_delay = 0
                 maximum_vote_delay = 6.5 * 24 * 60
-                rshares_divider = 5
+                rshares_divider = 5            
+            
             best_performance = 0
-            best_vote_delay_min = 0
-            for v in c["active_votes"]:
-                v_SBD = stm.rshares_to_sbd(int(v["rshares"]))
-                
-                if v_SBD > 0 and int(v["rshares"]) > rshares / rshares_divider:
+            best_vote_delay_min = 0            
+            performance = 0
+            rshares = 0
+            voter_rshares = 0
+
+            if c.is_pending():
+                for vote in c["active_votes"]:
+                    if vote["voter"] == vote_log["voter"]:
+                        rshares = int(vote["rshares"])
+                for vote in c["active_votes"]:
+
+                    voter_rshares = int(vote["rshares"])
                     
-                    p = float(curation_rewards_SBD["active_votes"][v["voter"]]) / v_SBD * 100
-                    if p > best_performance:
-                        best_performance = p
-                        best_vote_delay_min = ((v["time"]) - c["created"]).total_seconds() / 60
+                    curation_SBD = curation_rewards_SBD["active_votes"][vote["voter"]]
+                    if voter_rshares > 0 and vote["voter"] == vote_log["voter"]:
+                        vote_SBD = stm.rshares_to_sbd(voter_rshares)
+                        performance = (float(curation_SBD) / vote_SBD * 100)   
+                    if voter_rshares > 0 and voter_rshares > rshares / rshares_divider:
+                        vote_SBD = stm.rshares_to_sbd(voter_rshares)
+                        p = float(curation_rewards_SBD["active_votes"][vote["voter"]]) / vote_SBD * 100
+                        if p > best_performance:
+                            best_performance = p
+                            best_vote_delay_min = ((vote["time"]) - c["created"]).total_seconds() / 60                    
+            else:
+                rshares_sum = 0
+                rshares_before = 0
+                rshares_after = 0                
+                activeVotes = ActiveVotes(authorperm, steem_instance=stm).get_sorted_list()
+                total_rshares_sum = 0
+                for v in activeVotes:
+                    if v["rshares"] > 0:
+                        rshares_sum += int(v["rshares"])
+                    total_rshares_sum += int(v["rshares"])
+                    if v["voter"] == vote_log["voter"]:
+                        rshares = int(vote["rshares"])                    
+                curation_rshares = 0.25 * total_rshares_sum
+                for vote in activeVotes:
+                    voter_rshares = int(vote["rshares"])
+                    rshares_after = rshares_sum - rshares_before - voter_rshares
+                    if voter_rshares > 0:
+                        y = curation_performance(rshares_before, voter_rshares, rshares_after)
+                    if voter_rshares > 0 and vote["voter"] == vote_log["voter"]:
+                        performance = (1 - c.get_curation_penalty(vote_time=vote["time"])) * (curation_rshares * y) / voter_rshares * 100
+                    if voter_rshares > 0 and voter_rshares > rshares / rshares_divider:
+                        vote_SBD = stm.rshares_to_sbd(voter_rshares)
+                        p = float(curation_rewards_SBD["active_votes"][vote["voter"]]) / vote_SBD * 100
+                        if p > best_performance:
+                            best_performance = p
+                            best_vote_delay_min = ((vote["time"]) - c["created"]).total_seconds() / 60
+                    if voter_rshares > 0:
+                        rshares_before += voter_rshares
+                vote_log["is_pending"] = False
+                
 
             if acc_data is not None and acc_data["optimize_vote_delay"] and abs(vote_delay_diff) < 1.0 and not vote_log["trail_vote"]:
 
