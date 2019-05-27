@@ -638,6 +638,446 @@ def show_vote_log():
     return render_template('votes_log.html', table=table, user=name)
 
 
+@app.route('/api/vote_log', methods=['GET'])
+def api_vote_log():
+    
+    access_token = request.args.get('access_token', None)
+    sort = request.args.get('sort', 'timestamp')
+    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteLogTrx = VoteLogTrx(db)
+
+    try:
+        logs = voteLogTrx.get_votes(name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        voteLogTrx = VoteLogTrx(db)
+        logs = voteLogTrx.get_votes(name)
+    accountsTrx = AccountsDB(db)    
+ 
+    try:
+        sorted_log = sorted(logs, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_log = logs
+
+    return jsonify(sorted_log)
+
+
+@app.route('/api/vote_rules', methods=['GET'])
+def api_vote_rules():
+    
+    access_token = request.args.get('access_token', None)
+    sort = request.args.get('sort', 'timestamp')
+    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)
+
+    try:
+        rules = voteRulesTrx.get_posts(name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        voteRulesTrx = VoteRulesTrx(db)
+        rules = voteRulesTrx.get_posts(name)
+ 
+    try:
+        sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_rules = rules   
+
+    return jsonify(sorted_rules)
+
+@app.route('/api/new_trail_vote_rule', methods=['GET'])
+def api_new_trail_vote_rule():
+    
+    access_token = request.args.get('access_token', None)
+    voter_to_follow = request.args.get("voter_to_follow", None)
+
+    if access_token is None:
+        return jsonify({})
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify({})
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)
+    rule = {"voter_to_follow": voter_to_follow, "account": name}
+    for key in request.args:
+        if key in ["voter_to_follow", "account"]:
+            continue
+        if key not in ["only_main_post", "vote_weight_treshold", "include_authors", "exclude_authors", "min_vp", "vote_weight_scaler", "vote_weight_offset", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "exclude_declined_payout", "minimum_vote_delay_min", "maximum_vote_delay_min", "enabled", "max_net_votes", "max_pending_payout", "vp_scaler", "scale_weight_to_voter_vp_diff", "vote_when_vp_reached", "vp_reached_order", "vote_sbd", "exclude_authors_with_vote_rule", "note", "vote_delay_scaler"]:
+            continue
+        value = request.args.get(key, None)
+        if value == None:
+            continue
+        rule[key] = value
+    
+    trailVoteRulesTrx.add(rule)
+    rule = trailVoteRulesTrx.get(voter_to_follow, name)    
+        
+    return jsonify(rule)
+
+@app.route('/api/new_vote_rule', methods=['GET'])
+def api_new_vote_rule():
+    
+    access_token = request.args.get('access_token', None)
+    author = request.args.get('author', None)
+    main_post = request.args.get('main_post', None)
+    try:
+        main_post = bool(main_post)
+    except:
+        return jsonify({})
+    if access_token is None:
+        return jsonify({})
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify({})
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)
+    rule = {"author": author, "main_post": main_post, "voter": name}
+    for key in request.args:
+        if key in ["author", "main_post", "access_token", "voter"]:
+            continue
+        if key not in ["vote_delay_min", "vote_weight", "enabled", "vote_sbd", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "vote_when_vp_reached", "min_vp", "vp_scaler", "leave_comment", "minimum_word_count", "include_apps", "exclude_apps", "exclude_declined_payout", "vp_reached_order", "max_net_votes", "max_pending_payout", "include_text", "exclude_text", "maximum_vote_delay_min", "disable_optimization", "note"]:
+            continue
+        value = request.args.get(key, None)
+        if value == None:
+            continue
+        rule[key] = value
+    voteRulesTrx.add(rule)
+    rule = voteRulesTrx.get(name, author, main_post)
+        
+    return jsonify(rule)
+
+@app.route('/api/delayed_vote', methods=['GET'])
+def api_delayed_vote():
+    
+    access_token = request.args.get('access_token', None)
+    authorperm = request.args.get('authorperm', None)
+
+    if access_token is None:
+        return jsonify({})
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify({})
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    pendingVotesTrx = PendingVotesTrx(db)
+    
+    try:
+        authorperm = authorperm
+        if authorperm.find("@") > 1:
+            authorperm = authorperm[authorperm.find("@"):]
+        c = Comment(authorperm, steem_instance=stm)
+    except:
+        return jsonify("Wrong authorperm!")    
+    
+    vote_dict = {"authorperm": authorperm, "voter": name}
+    
+    if not (c.is_pending() and valid_age(c)):
+        stm.unlock(wallet_password)
+        body = "The reward of this comment goes 100 %% to the author %s. This is done by setting the beneficiaries of this comment to 100 %%.\n\n" % (c["author"])
+        comment_beneficiaries = [{"account": c["author"], "weight": 10000}]
+        permlink = derive_permlink("rewarding %s" % c["author"], c["permlink"])
+        stm.post("rewarding %s" % c["author"], body, author="rewarding", permlink=permlink, reply_identifier=c["authorperm"], beneficiaries=comment_beneficiaries)
+        stm.wallet.lock()
+        authorperm = construct_authorperm("rewarding", permlink)
+        vote_dict["comment_timestamp"] = datetime.utcnow()
+        vote_dict["authorperm"] = authorperm
+    else:        
+        vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
+        vote_dict["exclude_declined_payout"] = False
+    
+    for key in request.args:
+        if key in ["authorperm", "voter", "access_token", "comment_timestamp", "exclude_declined_payout"]:
+            continue
+        if key not in ["vote_weight", "vote_delay_min", "created", "min_vp", "vote_when_vp_reached", "vp_reached_order", "max_net_votes", "max_pending_payout", "max_votes_per_day", "max_votes_per_week", "vp_scaler", "leave_comment", "comment_command", "exclude_declined_payout", "maximum_vote_delay_min", "vote_sbd", "trail_vote", "vote_delay_scaler", "main_post", "voter_to_follow"]:
+            continue
+        value = request.args.get(key, None)
+        if value == None:
+            continue
+        vote_dict[key] = value
+    
+    try:
+        pendingVotesTrx.add(vote_dict)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        pendingVotesTrx = PendingVotesTrx(db)        
+        pendingVotesTrx.add(vote_dict)    
+
+    pending_votes = pendingVotesTrx.get_votes(name)
+        
+    return jsonify(pending_votes)
+
+
+@app.route('/api/delete_vote_rule', methods=['GET'])
+def api_delete_vote_rule():
+    
+    access_token = request.args.get('access_token', None)
+    author = request.args.get('author', None)
+    main_post = request.args.get('main_post', None)
+    try:
+        main_post = bool(main_post)
+    except:
+        return jsonify({})
+    if access_token is None:
+        return jsonify({})
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify({})
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)
+
+    voteRulesTrx.delete(name, author, main_post)
+    rule = voteRulesTrx.get(name, author, main_post)
+        
+    return jsonify(rule)
+
+@app.route('/api/delete_trail_vote_rule', methods=['GET'])
+def api_delete_trail_vote_rule():
+    
+    access_token = request.args.get('access_token', None)
+    voter_to_follow = request.args.get("voter_to_follow", None)
+    try:
+        main_post = bool(main_post)
+    except:
+        return jsonify({})
+    if access_token is None:
+        return jsonify({})
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify({})
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)
+    trailVoteRulesTrx.delete(voter_to_follow, name)
+    rule = trailVoteRulesTrx.get(voter_to_follow, name)
+    return jsonify(rule)
+
+@app.route('/api/edit_vote_rule', methods=['GET'])
+def api_edit_vote_rule():
+    
+    access_token = request.args.get('access_token', None)
+    author = request.args.get('author', None)
+    main_post = request.args.get('main_post', None)
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    voteRulesTrx = VoteRulesTrx(db)
+
+    try:
+        rule = voteRulesTrx.get(name, author, main_post)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        voteRulesTrx = VoteRulesTrx(db)
+        rule = voteRulesTrx.get(name, author, main_post)
+ 
+    change_detected = False
+    for key in rule:
+        if key in ["author", "main_post", "voter"]:
+            continue
+        value = request.args.get(key, None)
+        if value == None:
+            continue
+        change_detected = True
+        rule[key] = value
+    if change_detected:
+        voteRulesTrx.update(rule)
+        rule = voteRulesTrx.get(name, author, main_post)
+        
+    return jsonify(rule)
+
+
+@app.route('/api/edit_trail_vote_rule', methods=['GET'])
+def api_edit_trail_vote_rule():
+    
+    access_token = request.args.get('access_token', None)
+    voter_to_follow = request.args.get("voter_to_follow", None)
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)
+
+    try:
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        trailVoteRulesTrx = TrailVoteRulesTrx(db)
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+ 
+    change_detected = False
+    for key in rule:
+        if key in ["voter_to_follow"]:
+            continue
+        value = request.args.get(key, None)
+        if value == None:
+            continue
+        change_detected = True
+        rule[key] = value
+    if change_detected:
+        trailVoteRulesTrx.update(rule)
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+        
+    return jsonify(rule)
+
+@app.route('/api/trail_vote_rules', methods=['GET'])
+def api_trail_vote_rules():
+    
+    access_token = request.args.get('access_token', None)
+    sort = request.args.get('sort', 'timestamp')
+    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailVoteRulesTrx = TrailVoteRulesTrx(db)
+
+    try:
+        rules = trailVoteRulesTrx.get_rules_by_account(name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        trailVoteRulesTrx = TrailVoteRulesTrx(db)
+        rules = trailVoteRulesTrx.get_rules_by_account(name)
+ 
+    try:
+        sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_rules = rules   
+
+    return jsonify(sorted_rules)
+
+@app.route('/api/failed_vote_log', methods=['GET'])
+def api_failed_vote_log():
+    
+    access_token = request.args.get('access_token', None)
+    sort = request.args.get('sort', 'timestamp')
+    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    failedVoteLogTrx = FailedVoteLogTrx(db)
+
+    try:
+        logs = failedVoteLogTrx.get_votes(name, limit=100)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        failedVoteLogTrx = FailedVoteLogTrx(db)
+        logs = failedVoteLogTrx.get_votes(name, limit=100)
+    try:
+        sorted_log = sorted(logs, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_log = logs   
+
+    return jsonify(sorted_log)
+
+
+@app.route('/api/pending_votes', methods=['GET'])
+def api_pending_votes():
+    
+    access_token = request.args.get('access_token', None)
+    sort = request.args.get('sort', 'timestamp')
+    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    pendingVotesTrx = PendingVotesTrx(db)
+
+    try:
+        votes = pendingVotesTrx.get_votes(name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        pendingVotesTrx = PendingVotesTrx(db)
+        votes = pendingVotesTrx.get_votes(name)
+    try:
+        sorted_votes = sorted(votes, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_votes = votes   
+
+    return jsonify(sorted_votes)
+
+
+@app.route('/api/settings', methods=['GET'])
+def api_settings():
+    
+    access_token = request.args.get('access_token', None)
+    
+
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    accountsTrx = AccountsDB(db)    
+
+    try:
+        setting = accountsTrx.get(name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        accountsTrx = AccountsDB(db)    
+        setting = accountsTrx.get(name)
+    
+    change_detected = False
+    for key in setting:
+        if key in ["name"]:
+            continue
+        value = request.args.get(key, None)
+        if value == None:
+            continue
+        change_detected = True
+        setting[key] = value
+    if change_detected:
+        accountsTrx.update(setting)
+        setting = accountsTrx.get(name)
+
+    return jsonify(setting)
+
 @app.route('/show_failed_vote_log', methods=['GET'])
 @login
 def show_failed_vote_log():

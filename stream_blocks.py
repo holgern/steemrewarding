@@ -114,7 +114,7 @@ if __name__ == "__main__":
     posts_dict = {}
     changed_member_data = []
     ops = None
-    for ops in b.stream(start=start_block, stop=stop_block, opNames=["comment", "transfer", "vote"], max_batch_size=max_batch_size, threading=threading, thread_num=8):
+    for ops in b.stream(start=start_block, stop=stop_block, opNames=["comment", "transfer", "vote", "custom_json"], max_batch_size=max_batch_size, threading=threading, thread_num=8):
         #print(ops)
         timestamp = ops["timestamp"]
         # timestamp = timestamp.replace(tzinfo=None)
@@ -135,6 +135,24 @@ if __name__ == "__main__":
             timestamp = ops["timestamp"].replace(tzinfo=None)
             weight = ops["weight"] / STEEM_100_PERCENT * 100
             voteTrx.add({"authorperm": authorperm, "voter": ops["voter"], "block": ops["block_num"], "timestamp": timestamp, "weight": weight})
+            continue
+        elif ops["type"] == "custom_json":
+            if ops['id'] not in ["rewarding"]:
+                continue
+            try:
+                json_data = json.loads(ops['json'])
+                if isinstance(json_data, str):
+                    json_data = json.loads(json_data)                 
+            except:
+                print("Skip json: %s" % str(ops['json']))
+                continue
+            if len(ops['required_posting_auths']) > 0:
+                user = ops['required_posting_auths'][0]
+            elif len(ops['required_auths']) > 0:
+                user = ops['required_auths'][0]
+            else:
+                print("Cannot parse transaction, as user could not be determined!")
+                continue 
             continue
         if ops["body"].find("$rewarding") < 0:
             command_found = False

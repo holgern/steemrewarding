@@ -74,7 +74,7 @@ if __name__ == "__main__":
     updated_vote_log = []
     voteLogTrx.delete_old_logs(14)
     
-    for n in range(32):
+    for n in range(40):
         if n < 4:
             vote_log = voteLogTrx.get_oldest_log(vote_delay_optimized=True)
             
@@ -161,7 +161,7 @@ if __name__ == "__main__":
                         rshares_sum += int(v["rshares"])
                     total_rshares_sum += int(v["rshares"])
                     if v["voter"] == vote_log["voter"]:
-                        rshares = int(vote["rshares"])                    
+                        rshares = int(v["rshares"])                    
                 curation_rshares = 0.25 * total_rshares_sum
                 for vote in activeVotes:
                     voter_rshares = int(vote["rshares"])
