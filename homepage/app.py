@@ -257,6 +257,7 @@ class SettingsForm(FlaskForm):
     rshares_divider = FloatField('rshares_divider (Defines the lower limit of rshares that are considered for curaiton optimization, vote_rshares > own_votershares / rshares_divider)', default=5)
     frontend = TextAreaField('Frontend-URL', default="https://steemit.com/")
     sliding_time_window = BooleanField('sliding_time_window (When true, votes for max_votes_per_day are counting for the last 24 hours, When False, votes for max_votes_per_day are counted from 0:0:0 UTC, some is done for max_votes_per_week)', default=True)
+    pause_votes_below_vp = FloatField('Pause all votes when Vote power is below this value.', default=0.0)
 
 
 class VoteForm(FlaskForm):
@@ -485,7 +486,7 @@ def settings_dict_from_form(account, form):
                 "minimum_vote_delay": form.minimum_vote_delay.data, "maximum_vote_delay": form.maximum_vote_delay.data,
                 "optimize_ma_length": form.optimize_ma_length.data, "optimize_threshold": form.optimize_threshold.data,
                 "rshares_divider": form.rshares_divider.data, "frontend": form.frontend.data, "sliding_time_window": form.sliding_time_window.data,
-                "optimize_vote_delay_slope": form.optimize_vote_delay_slope.data}
+                "optimize_vote_delay_slope": form.optimize_vote_delay_slope.data, "pause_votes_below_vp": form.pause_votes_below_vp.data}
     return settings
 
 def login(func):
@@ -1264,6 +1265,7 @@ def settings():
             form.frontend.data = setting["frontend"]
             form.sliding_time_window.data = setting["sliding_time_window"]
             form.optimize_vote_delay_slope.data = setting["optimize_vote_delay_slope"]
+            form.pause_votes_below_vp.data = setting["pause_votes_below_vp"]
         return render_template('settings.html', form=form, user=name)
 
 
