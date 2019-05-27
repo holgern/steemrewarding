@@ -164,10 +164,8 @@ if __name__ == "__main__":
                 settings = accountsTrx.get(voter_acc["name"])
             if settings is not None:
                 sliding_time_window = settings["sliding_time_window"]
-                pause_votes_below_vp = settings["pause_votes_below_vp"]
             else:
                 sliding_time_window = True
-                pause_votes_below_vp = 0
             votes_24h_before = voteLogTrx.get_votes_per_day(pending_vote["voter"], author, sliding_time_window)
             if votes_24h_before >= pending_vote["max_votes_per_day"]:
                 failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The author was already upvoted %d in the last 24h (max_votes_per_day is %d)." % (votes_24h_before, pending_vote["max_votes_per_day"]),
@@ -201,6 +199,12 @@ if __name__ == "__main__":
                                   "main_post": pending_vote["main_post"]})                  
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue    
+        if settings is None:
+            settings = accountsTrx.get(voter_acc["name"])
+        if settings is not None:
+            pause_votes_below_vp = settings["pause_votes_below_vp"]
+        else:
+            pause_votes_below_vp = 0        
         if voter_acc.vp < pause_votes_below_vp:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Voting is paused (VP = %.2f %%, which below pause_votes_below_vp of %.2f %%)" % (voter_acc.vp, pause_votes_below_vp),
                                   "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],

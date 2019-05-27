@@ -609,6 +609,7 @@ def show_trail_rules():
 @app.route('/show_vote_log', methods=['GET'])
 @login
 def show_vote_log():
+    
     sort = request.args.get('sort', 'timestamp')
     reverse = (request.args.get('direction', 'desc') == 'desc')
     
@@ -639,12 +640,15 @@ def show_vote_log():
     return render_template('votes_log.html', table=table, user=name)
 
 
-@app.route('/api/vote_log', methods=['GET'])
+@app.route('/api/vote_log', methods=['GET', 'POST'])
 def api_vote_log():
-    
-    access_token = request.args.get('access_token', None)
-    sort = request.args.get('sort', 'timestamp')
-    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args       
+    access_token = json_data.get('access_token', None)
+    sort = json_data.get('sort', 'timestamp')
+    reverse = (json_data.get('direction', 'desc') == 'desc')
     if access_token is None:
         return jsonify([])
     try:
@@ -671,12 +675,15 @@ def api_vote_log():
     return jsonify(sorted_log)
 
 
-@app.route('/api/vote_rules', methods=['GET'])
+@app.route('/api/vote_rules', methods=['GET', 'POST'])
 def api_vote_rules():
-    
-    access_token = request.args.get('access_token', None)
-    sort = request.args.get('sort', 'timestamp')
-    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args        
+    access_token = json_data.get('access_token', None)
+    sort = json_data.get('sort', 'timestamp')
+    reverse = (json_data.get('direction', 'desc') == 'desc')
     if access_token is None:
         return jsonify([])
     try:
@@ -701,11 +708,14 @@ def api_vote_rules():
 
     return jsonify(sorted_rules)
 
-@app.route('/api/new_trail_vote_rule', methods=['GET'])
+@app.route('/api/new_trail_vote_rule', methods=['GET', 'POST'])
 def api_new_trail_vote_rule():
-    
-    access_token = request.args.get('access_token', None)
-    voter_to_follow = request.args.get("voter_to_follow", None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    voter_to_follow = json_data.get("voter_to_follow", None)
 
     if access_token is None:
         return jsonify({})
@@ -717,12 +727,12 @@ def api_new_trail_vote_rule():
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
     trailVoteRulesTrx = TrailVoteRulesTrx(db)
     rule = {"voter_to_follow": voter_to_follow, "account": name}
-    for key in request.args:
+    for key in json_data:
         if key in ["voter_to_follow", "account"]:
             continue
         if key not in ["only_main_post", "vote_weight_treshold", "include_authors", "exclude_authors", "min_vp", "vote_weight_scaler", "vote_weight_offset", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "exclude_declined_payout", "minimum_vote_delay_min", "maximum_vote_delay_min", "enabled", "max_net_votes", "max_pending_payout", "vp_scaler", "scale_weight_to_voter_vp_diff", "vote_when_vp_reached", "vp_reached_order", "vote_sbd", "exclude_authors_with_vote_rule", "note", "vote_delay_scaler"]:
             continue
-        value = request.args.get(key, None)
+        value = json_data.get(key, None)
         if value == None:
             continue
         rule[key] = value
@@ -732,12 +742,15 @@ def api_new_trail_vote_rule():
         
     return jsonify(rule)
 
-@app.route('/api/new_vote_rule', methods=['GET'])
+@app.route('/api/new_vote_rule', methods=['GET', 'POST'])
 def api_new_vote_rule():
-    
-    access_token = request.args.get('access_token', None)
-    author = request.args.get('author', None)
-    main_post = request.args.get('main_post', None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    author = json_data.get('author', None)
+    main_post = json_data.get('main_post', None)
     try:
         main_post = bool(main_post)
     except:
@@ -752,12 +765,12 @@ def api_new_vote_rule():
     db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
     voteRulesTrx = VoteRulesTrx(db)
     rule = {"author": author, "main_post": main_post, "voter": name}
-    for key in request.args:
+    for key in json_data:
         if key in ["author", "main_post", "access_token", "voter"]:
             continue
         if key not in ["vote_delay_min", "vote_weight", "enabled", "vote_sbd", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "vote_when_vp_reached", "min_vp", "vp_scaler", "leave_comment", "minimum_word_count", "include_apps", "exclude_apps", "exclude_declined_payout", "vp_reached_order", "max_net_votes", "max_pending_payout", "include_text", "exclude_text", "maximum_vote_delay_min", "disable_optimization", "note"]:
             continue
-        value = request.args.get(key, None)
+        value = json_data.get(key, None)
         if value == None:
             continue
         rule[key] = value
@@ -766,11 +779,14 @@ def api_new_vote_rule():
         
     return jsonify(rule)
 
-@app.route('/api/delayed_vote', methods=['GET'])
+@app.route('/api/delayed_vote', methods=['GET', 'POST'])
 def api_delayed_vote():
-    
-    access_token = request.args.get('access_token', None)
-    authorperm = request.args.get('authorperm', None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    authorperm = json_data.get('authorperm', None)
 
     if access_token is None:
         return jsonify({})
@@ -806,12 +822,12 @@ def api_delayed_vote():
         vote_dict["comment_timestamp"] = c["created"].replace(tzinfo=None)
         vote_dict["exclude_declined_payout"] = False
     
-    for key in request.args:
+    for key in json_data:
         if key in ["authorperm", "voter", "access_token", "comment_timestamp", "exclude_declined_payout"]:
             continue
         if key not in ["vote_weight", "vote_delay_min", "created", "min_vp", "vote_when_vp_reached", "vp_reached_order", "max_net_votes", "max_pending_payout", "max_votes_per_day", "max_votes_per_week", "vp_scaler", "leave_comment", "comment_command", "exclude_declined_payout", "maximum_vote_delay_min", "vote_sbd", "trail_vote", "vote_delay_scaler", "main_post", "voter_to_follow"]:
             continue
-        value = request.args.get(key, None)
+        value = json_data.get(key, None)
         if value == None:
             continue
         vote_dict[key] = value
@@ -828,12 +844,15 @@ def api_delayed_vote():
     return jsonify(pending_votes)
 
 
-@app.route('/api/delete_vote_rule', methods=['GET'])
+@app.route('/api/delete_vote_rule', methods=['GET', 'POST'])
 def api_delete_vote_rule():
-    
-    access_token = request.args.get('access_token', None)
-    author = request.args.get('author', None)
-    main_post = request.args.get('main_post', None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    author = json_data.get('author', None)
+    main_post = json_data.get('main_post', None)
     try:
         main_post = bool(main_post)
     except:
@@ -853,11 +872,14 @@ def api_delete_vote_rule():
         
     return jsonify(rule)
 
-@app.route('/api/delete_trail_vote_rule', methods=['GET'])
+@app.route('/api/delete_trail_vote_rule', methods=['GET', 'POST'])
 def api_delete_trail_vote_rule():
-    
-    access_token = request.args.get('access_token', None)
-    voter_to_follow = request.args.get("voter_to_follow", None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    voter_to_follow = json_data.get("voter_to_follow", None)
     try:
         main_post = bool(main_post)
     except:
@@ -875,12 +897,16 @@ def api_delete_trail_vote_rule():
     rule = trailVoteRulesTrx.get(voter_to_follow, name)
     return jsonify(rule)
 
-@app.route('/api/edit_vote_rule', methods=['GET'])
+@app.route('/api/edit_vote_rule', methods=['GET', 'POST'])
 def api_edit_vote_rule():
-    
-    access_token = request.args.get('access_token', None)
-    author = request.args.get('author', None)
-    main_post = request.args.get('main_post', None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args
+        
+    access_token = json_data.get('access_token', None)
+    author = json_data.get('author', None)
+    main_post = json_data.get('main_post', None)
     if access_token is None:
         return jsonify([])
     try:
@@ -902,7 +928,7 @@ def api_edit_vote_rule():
     for key in rule:
         if key in ["author", "main_post", "voter"]:
             continue
-        value = request.args.get(key, None)
+        value = json_data.get(key, None)
         if value == None:
             continue
         change_detected = True
@@ -914,11 +940,14 @@ def api_edit_vote_rule():
     return jsonify(rule)
 
 
-@app.route('/api/edit_trail_vote_rule', methods=['GET'])
+@app.route('/api/edit_trail_vote_rule', methods=['GET', 'POST'])
 def api_edit_trail_vote_rule():
-    
-    access_token = request.args.get('access_token', None)
-    voter_to_follow = request.args.get("voter_to_follow", None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    voter_to_follow = json_data.get("voter_to_follow", None)
     if access_token is None:
         return jsonify([])
     try:
@@ -940,7 +969,7 @@ def api_edit_trail_vote_rule():
     for key in rule:
         if key in ["voter_to_follow"]:
             continue
-        value = request.args.get(key, None)
+        value = json_data.get(key, None)
         if value == None:
             continue
         change_detected = True
@@ -951,12 +980,15 @@ def api_edit_trail_vote_rule():
         
     return jsonify(rule)
 
-@app.route('/api/trail_vote_rules', methods=['GET'])
+@app.route('/api/trail_vote_rules', methods=['GET', 'POST'])
 def api_trail_vote_rules():
-    
-    access_token = request.args.get('access_token', None)
-    sort = request.args.get('sort', 'timestamp')
-    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args        
+    access_token = json_data.get('access_token', None)
+    sort = json_data.get('sort', 'timestamp')
+    reverse = (json_data.get('direction', 'desc') == 'desc')
     if access_token is None:
         return jsonify([])
     try:
@@ -981,12 +1013,15 @@ def api_trail_vote_rules():
 
     return jsonify(sorted_rules)
 
-@app.route('/api/failed_vote_log', methods=['GET'])
+@app.route('/api/failed_vote_log', methods=['GET', 'POST'])
 def api_failed_vote_log():
-    
-    access_token = request.args.get('access_token', None)
-    sort = request.args.get('sort', 'timestamp')
-    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args        
+    access_token = json_data.get('access_token', None)
+    sort = json_data.get('sort', 'timestamp')
+    reverse = (json_data.get('direction', 'desc') == 'desc')
     if access_token is None:
         return jsonify([])
     try:
@@ -1011,12 +1046,15 @@ def api_failed_vote_log():
     return jsonify(sorted_log)
 
 
-@app.route('/api/pending_votes', methods=['GET'])
+@app.route('/api/pending_votes', methods=['GET', 'POST'])
 def api_pending_votes():
-    
-    access_token = request.args.get('access_token', None)
-    sort = request.args.get('sort', 'timestamp')
-    reverse = (request.args.get('direction', 'desc') == 'desc')
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args        
+    access_token = json_data.get('access_token', None)
+    sort = json_data.get('sort', 'timestamp')
+    reverse = (json_data.get('direction', 'desc') == 'desc')
     if access_token is None:
         return jsonify([])
     try:
@@ -1041,10 +1079,13 @@ def api_pending_votes():
     return jsonify(sorted_votes)
 
 
-@app.route('/api/settings', methods=['GET'])
+@app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
-    
-    access_token = request.args.get('access_token', None)
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
     
 
     if access_token is None:
@@ -1068,7 +1109,7 @@ def api_settings():
     for key in setting:
         if key in ["name"]:
             continue
-        value = request.args.get(key, None)
+        value = json_data.get(key, None)
         if value == None:
             continue
         change_detected = True
