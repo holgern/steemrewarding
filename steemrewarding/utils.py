@@ -65,6 +65,8 @@ def split_string(string):
 
 def tags_included(include_tags, tags):
     tags_included = True
+    if tags is None:
+        return False
     if include_tags is not None and include_tags != "":
         tags_included = False
         include_tags = split_string(include_tags)

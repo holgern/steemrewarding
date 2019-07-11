@@ -200,7 +200,10 @@ if __name__ == "__main__":
             app = None
             json_metadata = c.json_metadata
             if isinstance(json_metadata, str):
-                json_metadata = json.loads(json_metadata)
+                try:
+                    json_metadata = json.loads(json_metadata)
+                except:
+                    continue
             if "app" in json_metadata:
                 app = json_metadata["app"]
                 if isinstance(app, dict) and "name" in app:
@@ -227,7 +230,7 @@ if __name__ == "__main__":
             start_time = time.time()
             #print(posts_dict)
             postTrx.add_batch(posts_dict)
-            print("Adding %d post took %.2f seconds" % (len(posts_dict), time.time() - start_time))
+            # print("Adding %d post took %.2f seconds" % (len(posts_dict), time.time() - start_time))
             posts_dict = {}
             
 

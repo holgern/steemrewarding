@@ -109,7 +109,15 @@ if __name__ == "__main__":
                                   "main_post": pending_vote["main_post"]})                  
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             print("Could not process %s" % pending_vote["authorperm"])
-            continue            
+            continue
+        if voter_acc.get_rc_manabar()["current_mana"] / 1e9 < 0.1:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Could not vot %s, as RC is almost zero." % (pending_vote["authorperm"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
+                                  "main_post": pending_vote["main_post"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+            print("Could not process %s" % pending_vote["authorperm"])
+            continue          
         try:
             c = Comment(pending_vote["authorperm"], steem_instance=stm)
         except:
@@ -294,7 +302,15 @@ if __name__ == "__main__":
                                   "main_post": pending_vote["main_post"]})                  
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             print("Could not process %s" % pending_vote["authorperm"])
-            continue            
+            continue
+        if voter_acc.get_rc_manabar()["current_mana"] / 1e9 < 0.1:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Could not vot %s, as RC is almost zero." % (pending_vote["authorperm"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
+                                  "main_post": pending_vote["main_post"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+            print("Could not process %s" % pending_vote["authorperm"])
+            continue        
         age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
         maximum_vote_delay_min = pending_vote["maximum_vote_delay_min"]
         if maximum_vote_delay_min > 0 and age_min > maximum_vote_delay_min + voting_round_sec / 60:
