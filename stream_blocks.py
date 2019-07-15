@@ -23,6 +23,7 @@ from steemrewarding.config_storage import ConfigurationDB
 from steemrewarding.vote_storage import VotesTrx
 from steemrewarding.utils import isfloat
 from steemrewarding.version import version as rewardingversion
+from steemrewarding.broadcast_vote_storage import BroadcastVoteTrx
 import dataset
 from nltk.tokenize import RegexpTokenizer
 
@@ -51,6 +52,7 @@ if __name__ == "__main__":
     voteTrx = VotesTrx(db)
     commandsTrx = CommandsTrx(db)
     trailVoteRuleTrx = TrailVoteRulesTrx(db)
+    broadcastVoteTrx = BroadcastVoteTrx(db)
     
     conf_setup = confStorage.get()
     last_streamed_block = conf_setup["last_streamed_block"]
@@ -129,9 +131,14 @@ if __name__ == "__main__":
         elif ops["type"] == "transfer":
             continue
         elif ops["type"] == "vote":
+            authorperm = construct_authorperm(ops["author"], ops["permlink"])
+            unprocessed_vote = broadcastVoteTrx.get_unprocessed(ops["voter"], authorperm)
+            if unprocessed_vote is not None:
+                broadcastVoteTrx.update_processed(ops["voter"], authorperm, ops["trx_id"], True, False)
+                
             if ops["voter"] not in voter_list:
                 continue
-            authorperm = construct_authorperm(ops["author"], ops["permlink"])
+            
             timestamp = ops["timestamp"].replace(tzinfo=None)
             weight = ops["weight"] / STEEM_100_PERCENT * 100
             voteTrx.add({"authorperm": authorperm, "voter": ops["voter"], "block": ops["block_num"], "timestamp": timestamp, "weight": weight})
@@ -216,11 +223,14 @@ if __name__ == "__main__":
             for v in c["active_votes"]:
                 vote_rshares += int(v["rshares"])
             tags = ""
-            for t in c["tags"]:
-                if t is not None and len(tags) == 0:
-                    tags = t
-                elif t is not None and len(tags) > 0:
-                    tags += "," + t
+            if "tags" in c and c["tags"] is not None:
+                for t in c["tags"]:
+                    if t is not None and len(tags) == 0:
+                        tags = t
+                    elif t is not None and len(tags) > 0:
+                        tags += "," + t
+            if len(tags) > 512:
+                continue
             posts_dict[authorperm] = {"authorperm": authorperm, "author": ops["author"], "created": dt_created, "block": ops["block_num"],
                                       "main_post": main_post, "tags": tags, "app": app, "decline_payout": int(c["max_accepted_payout"]) == 0,
                                       "word_count": word_count, "net_votes": net_votes, "vote_rshares": vote_rshares, "pending_payout_value": float(c["pending_payout_value"]),

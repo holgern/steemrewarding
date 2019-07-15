@@ -74,7 +74,7 @@ if __name__ == "__main__":
     updated_vote_log = []
     voteLogTrx.delete_old_logs(14)
     
-    for n in range(40):
+    for n in range(32):
         if n < 4:
             vote_log = voteLogTrx.get_oldest_log(vote_delay_optimized=True)
             

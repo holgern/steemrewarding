@@ -3,7 +3,6 @@ from beem.nodelist import NodeList
 from beem.comment import Comment
 from beem import Steem
 from beem.account import Account
-from datetime import datetime, timedelta
 from beem.instance import set_shared_steem_instance
 from beem.blockchain import Blockchain
 import time 
@@ -23,7 +22,8 @@ from steemrewarding.config_storage import ConfigurationDB
 from steemrewarding.vote_storage import VotesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
-from steemrewarding.utils import isfloat, upvote_comment, valid_age
+from steemrewarding.broadcast_vote_storage import BroadcastVoteTrx
+from steemrewarding.utils import isfloat, upvote_comment, valid_age, upvote_comment_without_check
 from steemrewarding.version import version as rewardingversion
 from steemrewarding.account_storage import AccountsDB
 from steemrewarding.version import version as rewarding_version
@@ -57,6 +57,7 @@ if __name__ == "__main__":
     voteLogTrx = VoteLogTrx(db)
     failedVoteLogTrx = FailedVoteLogTrx(db)
     accountsTrx = AccountsDB(db)
+    broadcastVoteTrx = BroadcastVoteTrx(db)
 
     conf_setup = confStorage.get()
     # last_post_block = conf_setup["last_post_block"]
@@ -71,6 +72,21 @@ if __name__ == "__main__":
     node_list = nodes.get_nodes()
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     stm.wallet.unlock(wallet_password)
+    
+    
+    for vote in broadcastVoteTrx.get_all_expired():
+        if vote["retry_count"] >= 5:
+            broadcastVoteTrx.update_processed(vote["voter"], vote["authorperm"], None, False, True)
+            continue
+        if vote["expiration"] < datetime.utcnow():
+            continue
+        try:
+            stm.vote(vote["weight"], vote["authorperm"], vote["voter"])
+        except:
+            print("Vote failed")
+        broadcastVoteTrx.update({"voter": vote["voter"], "authorperm": vote["authorperm"], "retry_count": vote["retry_count"] + 1})
+    
+    
     vote_count = 0
     delete_pending_votes = []
     for pending_vote in pendingVotesTrx.get_command_list_timed():
@@ -118,16 +134,7 @@ if __name__ == "__main__":
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             print("Could not process %s" % pending_vote["authorperm"])
             continue          
-        try:
-            c = Comment(pending_vote["authorperm"], steem_instance=stm)
-        except:
-            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Could not process %s" % (pending_vote["authorperm"]),
-                                  "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
-                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
-                                  "main_post": pending_vote["main_post"]})                  
-            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-            print("Could not process %s" % pending_vote["authorperm"])
-            continue
+
         
         vote_weight = pending_vote["vote_weight"]
         if vote_weight is None or vote_weight <= 0:        
@@ -140,17 +147,30 @@ if __name__ == "__main__":
                                       "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
                                       "main_post": pending_vote["main_post"]})                  
                 delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-                continue                
-        if not valid_age(c):
+                continue
+        age_hour = ((datetime.utcnow()) - pending_vote["created"]).total_seconds() / 60 / 60
+        if age_hour > 156:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than 6.5 days.",
                                   "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                                   "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
                                   "main_post": pending_vote["main_post"]})                  
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue                
-        age_min = (addTzInfo(datetime.utcnow()) - c["created"]).total_seconds() / 60
+        age_min = ((datetime.utcnow()) - pending_vote["created"]).total_seconds() / 60
         if age_min < pending_vote["vote_delay_min"] - voting_round_sec / 2.0 / 60:
             continue
+        
+        try:
+            c = Comment(pending_vote["authorperm"], steem_instance=stm)
+        except:
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Could not process %s" % (pending_vote["authorperm"]),
+                                  "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
+                                  "main_post": pending_vote["main_post"]})                  
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+            print("Could not process %s" % pending_vote["authorperm"])
+            continue        
+        
         if pending_vote["max_net_votes"] >= 0 and pending_vote["max_net_votes"] < c["net_votes"]:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "The number of post/comment votes (%d) is higher than max_net_votes (%d)." % (c["net_votes"], pending_vote["max_net_votes"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
@@ -211,7 +231,10 @@ if __name__ == "__main__":
             settings = accountsTrx.get(voter_acc["name"])
         if settings is not None:
             pause_votes_below_vp = settings["pause_votes_below_vp"]
+            if settings["vp"] is None:
+                accountsTrx.upsert({"name": pending_vote["voter"], "vp_update":datetime.utcnow(), "vp": voter_acc.vp})
         else:
+            accountsTrx.upsert({"name": pending_vote["voter"], "vp_update":datetime.utcnow(), "vp": voter_acc.vp})
             pause_votes_below_vp = 0        
         if voter_acc.vp < pause_votes_below_vp:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Voting is paused (VP = %.2f %%, which below pause_votes_below_vp of %.2f %%)" % (voter_acc.vp, pause_votes_below_vp),
@@ -255,15 +278,15 @@ if __name__ == "__main__":
                                   "main_post": pending_vote["main_post"]})
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue            
-        sucess = upvote_comment(c, voter_acc["name"], vote_weight)
-
-        if sucess:
+        # sucess = upvote_comment(c, voter_acc["name"], vote_weight)
+        reply_message = upvote_comment_without_check(c, voter_acc["name"], vote_weight)
+        if reply_message is not None:
             vote_count += 1
             if pending_vote["leave_comment"]:
                 try:
                     if settings is None:
                         settings = accountsTrx.get(voter_acc["name"])
-                    if settings is not None and "upvote_comment" in settings:
+                    if settings is not None and "upvote_comment" in settings and settings["upvote_comment"] is not None:
                         json_metadata = {'app': 'rewarding/%s' % (rewarding_version)}
                         reply_body = settings["upvote_comment"]
                         reply_body = reply_body.replace("{{name}}", "@%s" % c["author"] ).replace("{{voter}}", "@%s" % voter_acc["name"])
@@ -275,15 +298,21 @@ if __name__ == "__main__":
                             "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
                             "trail_vote": pending_vote["trail_vote"], "main_post": pending_vote["main_post"],
                             "voter_to_follow": pending_vote["voter_to_follow"]})
+            broadcastVoteTrx.add({"expiration": formatTimeString(reply_message["expiration"]).replace(tzinfo=None), "authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"],
+                                  "weight": vote_weight})            
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue
+        else:
+            broadcastVoteTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"],
+                                  "weight": vote_weight, "valid": True})
 
     for pending_vote in delete_pending_votes:
         pendingVotesTrx.delete(pending_vote["authorperm"], pending_vote["voter"], pending_vote["vote_when_vp_reached"])
     delete_pending_votes = []
     
     print("time vote %.2f s - %d votes" % (time.time() - start_prep_time, vote_count))
-    
+    votes_above_vp = 0
+    votes_below_vp = 0
     for pending_vote in pendingVotesTrx.get_command_list_vp_reached():
         settings = None
         if (pending_vote["vote_weight"] is None or pending_vote["vote_weight"] <= 0) and (pending_vote["vote_sbd"] is None or float(pending_vote["vote_sbd"]) <= 0):
@@ -294,7 +323,41 @@ if __name__ == "__main__":
                                   "main_post": pending_vote["main_post"]})                  
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue
-        voter_acc = Account(pending_vote["voter"], steem_instance=stm)
+        age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
+        maximum_vote_delay_min = pending_vote["maximum_vote_delay_min"]
+        if maximum_vote_delay_min > 0 and age_min > maximum_vote_delay_min + voting_round_sec / 60:
+            voter_acc = Account(pending_vote["voter"], steem_instance=stm)
+            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than %.2f min." % (maximum_vote_delay_min),
+                                  "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
+                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
+                                  "main_post": pending_vote["main_post"]})              
+            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+            continue
+        if age_min < pending_vote["vote_delay_min"] - voting_round_sec / 2.0 / 60:
+            continue
+        
+        
+        settings = accountsTrx.get(pending_vote["voter"])
+        if settings is None:
+            voter_acc = Account(pending_vote["voter"], steem_instance=stm)
+            accountsTrx.upsert({"name": pending_vote["voter"], "vp_update":datetime.utcnow(), "vp": voter_acc.vp})
+            pause_votes_below_vp = 0
+            vp = voter_acc.vp
+        else:
+            pause_votes_below_vp = settings["pause_votes_below_vp"]
+            vp = settings["vp"]
+            vp_update = settings["vp_update"]
+            if vp_update is not None:
+                diff_in_seconds = ((datetime.utcnow()) - (vp_update)).total_seconds()
+                if diff_in_seconds < 3600:
+                    regenerated_vp = diff_in_seconds * 10000 / 432000 / 100
+                    if vp + regenerated_vp < pending_vote["min_vp"]:
+                        votes_below_vp += 1
+                        continue
+            voter_acc = Account(pending_vote["voter"], steem_instance=stm)
+            accountsTrx.upsert({"name": pending_vote["voter"], "vp_update":datetime.utcnow(), "vp": voter_acc.vp})
+        
+        
         if voter_acc.sp < 0.1:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Could not vot %s, as Steem Power is almost zero." % (pending_vote["authorperm"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
@@ -311,27 +374,16 @@ if __name__ == "__main__":
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             print("Could not process %s" % pending_vote["authorperm"])
             continue        
-        age_min = (datetime.utcnow() - pending_vote["comment_timestamp"]).total_seconds() / 60
-        maximum_vote_delay_min = pending_vote["maximum_vote_delay_min"]
-        if maximum_vote_delay_min > 0 and age_min > maximum_vote_delay_min + voting_round_sec / 60:
-            voter_acc = Account(pending_vote["voter"], steem_instance=stm)
-            failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "post is older than %.2f min." % (maximum_vote_delay_min),
-                                  "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
-                                  "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
-                                  "main_post": pending_vote["main_post"]})              
-            delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
-            continue            
+        
+       
+            
+            
         if voter_acc.vp < pending_vote["min_vp"]:
+            votes_below_vp += 1
             continue
-        if age_min < pending_vote["vote_delay_min"] - voting_round_sec / 2.0 / 60:
-            continue
-    
-        if settings is None:
-            settings = accountsTrx.get(voter_acc["name"])
-        if settings is not None:
-            pause_votes_below_vp = settings["pause_votes_below_vp"]
-        else:
-            pause_votes_below_vp = 0
+        votes_above_vp += 1
+        print("Votes above min_vp %d / below %d" % (votes_above_vp, votes_below_vp))
+
         if voter_acc.vp < pause_votes_below_vp:
             continue        
     
@@ -447,14 +499,15 @@ if __name__ == "__main__":
                                   "main_post": pending_vote["main_post"]})
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
             continue
-        sucess = upvote_comment(c, voter_acc["name"], vote_weight)
-        if sucess:
+        # sucess = upvote_comment(c, voter_acc["name"], vote_weight)
+        reply_message = upvote_comment_without_check(c, voter_acc["name"], vote_weight)
+        if reply_message is not None:
             vote_count += 1
             if pending_vote["leave_comment"]:
                 try:
                     if settings is None:
                         settings = accountsTrx.get(voter_acc["name"])
-                    if settings is not None and "upvote_comment" in settings:
+                    if settings is not None and "upvote_comment" in settings and settings["upvote_comment"] is not None:
                         json_metadata = {'app': 'rewarding/%s' % (rewarding_version)}
                         reply_body = settings["upvote_comment"]
                         reply_body = reply_body.replace("{{name}}", "@%s" % c["author"] ).replace("{{voter}}", "@%s" % voter_acc["name"])
@@ -466,8 +519,13 @@ if __name__ == "__main__":
                             "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                             "voted_after_min": age_min, "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
                             "trail_vote": pending_vote["trail_vote"], "main_post": pending_vote["main_post"],
-                            "voter_to_follow": pending_vote["voter_to_follow"]})            
+                            "voter_to_follow": pending_vote["voter_to_follow"], "is_pending": True})
+            broadcastVoteTrx.add({"expiration": formatTimeString(reply_message["expiration"]).replace(tzinfo=None), "authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"],
+                                  "weight": vote_weight})
             delete_pending_votes.append({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "vote_when_vp_reached": pending_vote["vote_when_vp_reached"]})
+        else:
+            broadcastVoteTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"],
+                                  "weight": vote_weight, "valid": True})
         continue                        
     
     for pending_vote in delete_pending_votes:

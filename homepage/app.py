@@ -38,7 +38,6 @@ from beem.version import version as __version__
 from beem.asciichart import AsciiChart
 from beem.transactionbuilder import TransactionBuilder
 from beem.version import version as beem_version
-from beem.steemconnect import SteemConnect
 from beembase import operations
 from beem.transactionbuilder import TransactionBuilder
 from timeit import default_timer as timer
@@ -497,6 +496,7 @@ def login(func):
             login_url = steemconnect.get_login_url(
                 "https://steemrewarding.com/welcome",
             )        
+            login_url = "https://beta.steemconnect.com/login-request/beem.app?redirect_uri=https%3A%2F%2Fsteemrewarding.com%2Fwelcome&scope=login"
             return render_template('please_login.html', login_url=login_url)
         elif access_token is None:
             access_token = session['access_token']
@@ -510,6 +510,7 @@ def login(func):
             login_url = steemconnect.get_login_url(
                 "https://steemrewarding.com/welcome",
             )        
+            login_url = "https://beta.steemconnect.com/login-request/beem.app?redirect_uri=https%3A%2F%2Fsteemrewarding.com%2Fwelcome&scope=login"
             return render_template('please_login.html', login_url=login_url)        
         return func(*args, **kwargs)
     return check_access_token
@@ -534,7 +535,8 @@ def logout():
         name = ""
         login_url = steemconnect.get_login_url(
             "https://steemrewarding.com/welcome",
-        )        
+        )
+        login_url = "https://beta.steemconnect.com/login-request/beem.app?redirect_uri=https%3A%2F%2Fsteemrewarding.com%2Fwelcome&scope=login"
         return render_template('please_login.html', login_url=login_url)
     
     return render_template('welcome.html', user=name)
