@@ -78,7 +78,7 @@ if __name__ == "__main__":
         if vote["retry_count"] >= 5:
             broadcastVoteTrx.update_processed(vote["voter"], vote["authorperm"], None, False, True)
             continue
-        if vote["expiration"] < datetime.utcnow():
+        if vote["expiration"] is not None and vote["expiration"] < datetime.utcnow():
             continue
         try:
             stm.vote(vote["weight"], vote["authorperm"], vote["voter"])

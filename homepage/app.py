@@ -493,11 +493,8 @@ def login(func):
     def check_access_token(*args, **kwargs):
         access_token = request.args.get("access_token", None)
         if access_token is None and 'access_token' not in session:
-            login_url = steemconnect.get_login_url(
-                "https://steemrewarding.com/welcome",
-            )        
-            login_url = "https://beta.steemconnect.com/login-request/beem.app?redirect_uri=https%3A%2F%2Fsteemrewarding.com%2Fwelcome&scope=login"
-            return render_template('please_login.html', login_url=login_url)
+
+            return render_template('please_login.html')
         elif access_token is None:
             access_token = session['access_token']
         else:
@@ -507,11 +504,8 @@ def login(func):
             steemconnect.set_access_token(access_token)
             name = steemconnect.me()["name"]
         except:
-            login_url = steemconnect.get_login_url(
-                "https://steemrewarding.com/welcome",
-            )        
-            login_url = "https://beta.steemconnect.com/login-request/beem.app?redirect_uri=https%3A%2F%2Fsteemrewarding.com%2Fwelcome&scope=login"
-            return render_template('please_login.html', login_url=login_url)        
+
+            return render_template('please_login.html')        
         return func(*args, **kwargs)
     return check_access_token
 
@@ -533,11 +527,8 @@ def logout():
     if 'access_token' in session:
         session['access_token'] = None
         name = ""
-        login_url = steemconnect.get_login_url(
-            "https://steemrewarding.com/welcome",
-        )
-        login_url = "https://beta.steemconnect.com/login-request/beem.app?redirect_uri=https%3A%2F%2Fsteemrewarding.com%2Fwelcome&scope=login"
-        return render_template('please_login.html', login_url=login_url)
+
+        return render_template('please_login.html')
     
     return render_template('welcome.html', user=name)
 

@@ -2,6 +2,44 @@
 
 {% block content %}
 
+<script>
+
+  var client = new steemconnect.Client({
+  app: 'beem.app',
+  callbackURL: 'https://steemrewarding.com/welcome',
+  scope: ['login']
+});
+
+var loginURL = client.getLoginURL();
+// The "username" parameter is required prior to log in for "Steem Keychain" users.
+
+    function redirect() {
+      window.location = loginURL;
+    }
+
+function LoginKeychain(){
+        var params = {};
+
+        // The "username" parameter is required prior to log in for "Steem Keychain" users.
+        if (steemconnect.useSteemKeychain) {
+                var us = $('#keychainUser').val();
+                console.log(us); 
+                params = { username: us };
+
+        }
+      client.login(params, function(err, token) {
+              console.log(err, token)
+              if(token){
+                window.location = 'https://steemrewarding.com/welcome?access_token=' + token
+              
+              }
+      });
+        
+}
+
+</script>
+
+
         <div class="my-3 my-md-5">
           <div class="container">
  
@@ -10,8 +48,16 @@
                   <div class="card-header">
                     <h3 class="card-title text-center">Welcome to steemrewarding </h3>
                   </div>
-                  You need to login with
-                  <a class="btn btn-primary" href="{{login_url}}" role="button">steemconnect</a>
+                  You need to login with keychain or with steemconnect. Please enter your steem username in the field below, when you want to login withe keychain.
+                  
+                  
+                  
+                          <div class="input-group input-group-sm">
+                          <span class="input-group-addon">@</span>
+                          <input id="keychainUser" type="text" class="form-control">
+                          </div>
+                          <a class="btn btn-primary" href="#" onClick="LoginKeychain()" role="button">Login</a>
+                    
                 </div>
                 
               </div>
