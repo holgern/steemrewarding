@@ -66,15 +66,14 @@ if __name__ == "__main__":
     except:
         print("could not update nodes")
     
-    node_list = nodes.get_nodes()
-    if "https://api.steemit.com" in node_list:
-        node_list.remove("https://api.steemit.com")
+    node_list = nodes.get_nodes(exclude_limited=True)
+
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     b = Blockchain(steem_instance = stm)
     updated_vote_log = []
     voteLogTrx.delete_old_logs(14)
     
-    for n in range(32):
+    for n in range(16):
         if n < 4:
             vote_log = voteLogTrx.get_oldest_log(vote_delay_optimized=True)
             
@@ -153,8 +152,11 @@ if __name__ == "__main__":
             else:
                 rshares_sum = 0
                 rshares_before = 0
-                rshares_after = 0                
-                activeVotes = ActiveVotes(authorperm, steem_instance=stm).get_sorted_list()
+                rshares_after = 0
+                try:
+                    activeVotes = ActiveVotes(authorperm, steem_instance=stm).get_sorted_list()
+                except:
+                    continue
                 total_rshares_sum = 0
                 for v in activeVotes:
                     if v["rshares"] > 0:

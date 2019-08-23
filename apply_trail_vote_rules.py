@@ -98,11 +98,24 @@ if __name__ == "__main__":
         if len(rules) == 0:
             continue
         fitting_rules = []
-        try:
-            post = Comment(authorperm, steem_instance=stm)
-        except:
-            print("Could not parse %s" % authorperm)
-            continue
+        
+        cnt = 0
+        post = None
+        while post is None and cnt < 5:
+            cnt += 1
+            try:
+                post = Comment(authorperm, steem_instance=stm)
+                post.refresh()
+            except:
+                nodelist = NodeList()
+                nodelist.update_nodes()
+                stm = Steem(node=nodelist.get_nodes(), num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
+                time.sleep(1)
+        if cnt == 5:
+            print("Could not read %s" % (authorperm))
+            continue               
+        
+        
         for rule in rules:
             # print(rule)
             if not string_included(rule["include_authors"], post["author"]):
@@ -154,7 +167,7 @@ if __name__ == "__main__":
                                 "vp_reached_order": rule["vp_reached_order"], "max_net_votes": rule["max_net_votes"], "max_pending_payout": rule["max_pending_payout"],
                                 "max_votes_per_day": rule["max_votes_per_day"], "max_votes_per_week": rule["max_votes_per_week"], "vp_scaler": rule["vp_scaler"], "leave_comment": False,
                                 "maximum_vote_delay_min": rule["maximum_vote_delay_min"], "vote_sbd": rule["vote_sbd"], "vote_delay_scaler": rule["vote_delay_scaler"],
-                                "trail_vote": True, "voter_to_follow": rule["voter_to_follow"]}
+                                "trail_vote": True, "voter_to_follow": rule["voter_to_follow"],  "pending_vote_timestamp": post["created"].replace(tzinfo=None) + timedelta(seconds=rule["minimum_vote_delay_min"]/60)}
                 pendingVotesTrx.add(pending_vote)
 
     confStorage.update({"last_vote": last_vote})

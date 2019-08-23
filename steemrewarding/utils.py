@@ -30,6 +30,8 @@ def upvote_comment_without_check(c_comment, acc_vote_name, acc_vote_weight, retr
     for v in c_comment["active_votes"]:
         if acc_vote_name == v["voter"]:
             already_voted = True
+    if acc_vote_weight <0.01:
+        return None
     cnt = 0
     reply = None
     while not already_voted and cnt <= retry_count:
@@ -37,7 +39,7 @@ def upvote_comment_without_check(c_comment, acc_vote_name, acc_vote_weight, retr
             reply = c_comment.upvote(weight=acc_vote_weight, voter=acc_vote_name)
             already_voted = True
         except Exception as inst:
-            print("retry to vote %s from %s" % (c_comment["authorperm"], acc_vote_name))
+            print("retry to vote %s from %s with %.2f" % (c_comment["authorperm"], acc_vote_name, acc_vote_weight))
             print(type(inst))
             print(inst)
             time.sleep(3)
@@ -56,6 +58,8 @@ def upvote_comment(c_comment, acc_vote_name, acc_vote_weight, retry_count=5):
         if acc_vote_name == v["voter"]:
             already_voted = True
     cnt = 0
+    if acc_vote_weight < 0.01:
+        return False
     while not (vote_sucessfull or already_voted) and cnt <= retry_count:
         try:
             c_comment.upvote(weight=acc_vote_weight, voter=acc_vote_name)
@@ -65,7 +69,7 @@ def upvote_comment(c_comment, acc_vote_name, acc_vote_weight, retry_count=5):
                 if acc_vote_name == v["voter"]:
                     vote_sucessfull = True
         except Exception as inst:
-            print("retry to vote %s from %s" % (c_comment["authorperm"], acc_vote_name))
+            print("retry to vote %s from %s with %.2f" % (c_comment["authorperm"], acc_vote_name, acc_vote_weight))
             print(type(inst))
             print(inst)
             time.sleep(3)

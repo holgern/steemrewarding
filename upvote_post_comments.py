@@ -69,24 +69,37 @@ if __name__ == "__main__":
     except:
         print("could not update nodes")
     
-    node_list = nodes.get_nodes()
+    node_list = nodes.get_nodes(exclude_limited=False)
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     stm.wallet.unlock(wallet_password)
     
-    
+    last_voter = None
     for vote in broadcastVoteTrx.get_all_expired():
+        if last_voter is not None and last_voter == vote["voter"]:
+            print("Skip %s for this round" % vote["voter"])
+            continue        
+        voter_acc = Account(vote["voter"], steem_instance=stm)
+        if voter_acc.get_rc_manabar()["current_mana"] / 1e9 < 0.1:
+            print("%s has not sufficient RC" % vote["voter"])
+            last_voter = vote["voter"]
+            continue
+        
         if vote["retry_count"] >= 5:
             broadcastVoteTrx.update_processed(vote["voter"], vote["authorperm"], None, False, True)
             continue
         if vote["expiration"] is not None and vote["expiration"] < datetime.utcnow():
             continue
+        if vote["weight"] < 0.01:
+            continue
         try:
+            print("voter %s votes %s" % (vote["voter"], vote["authorperm"]))
             stm.vote(vote["weight"], vote["authorperm"], vote["voter"])
-        except:
-            print("Vote failed")
+        except Exception as e:
+            print("Vote failed: %s" % str(e))
+        last_voter = vote["voter"]
         broadcastVoteTrx.update({"voter": vote["voter"], "authorperm": vote["authorperm"], "retry_count": vote["retry_count"] + 1})
     
-    
+    print("Start apply new votes")
     vote_count = 0
     delete_pending_votes = []
     for pending_vote in pendingVotesTrx.get_command_list_timed():
@@ -141,7 +154,7 @@ if __name__ == "__main__":
             vote_weight = voter_acc.get_vote_pct_for_SBD(float(pending_vote["vote_sbd"])) / 100.
             if vote_weight > 100:
                 vote_weight = 100
-            elif vote_weight == 0:
+            elif vote_weight < 0.01:
                 failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "vote_weight was set to zero.",
                                       "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                                       "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],
@@ -392,7 +405,7 @@ if __name__ == "__main__":
             vote_weight = voter_acc.get_vote_pct_for_SBD(float(pending_vote["vote_sbd"])) / 100.
             if vote_weight > 100:
                 vote_weight = 100
-            elif vote_weight == 0:
+            elif vote_weight < 0.01:
                 failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "vote_weight was set to zero.",
                                       "timestamp": datetime.utcnow(), "vote_weight": vote_weight, "vote_delay_min": pending_vote["vote_delay_min"],
                                       "min_vp": pending_vote["min_vp"], "vp": voter_acc.vp, "vote_when_vp_reached": pending_vote["vote_when_vp_reached"],

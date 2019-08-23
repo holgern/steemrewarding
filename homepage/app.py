@@ -514,7 +514,13 @@ def login(func):
 @login
 def main():
     name = steemconnect.me()["name"]
-    acc = Account(name)
+    try:        
+        acc = Account(name, steem_instance=stm)
+    except:
+        nodelist = NodeList()
+        nodelist.update_nodes()
+        stm = Steem(node=nodelist.get_nodes(), num_retries=5, call_num_retries=3, timeout=15)    
+        acc = Account(name, steem_instance=stm)
     posting_auth = False
     for a in acc["posting"]["account_auths"]:
         if a[0] == "rewarding":
@@ -536,7 +542,13 @@ def logout():
 @login
 def welcome():
     name = steemconnect.me()["name"]
-    acc = Account(name)
+    try:        
+        acc = Account(name, steem_instance=stm)
+    except:
+        nodelist = NodeList()
+        nodelist.update_nodes()
+        stm = Steem(node=nodelist.get_nodes(), num_retries=5, call_num_retries=3, timeout=15)    
+        acc = Account(name, steem_instance=stm)    
     posting_auth = False
     for a in acc["posting"]["account_auths"]:
         if a[0] == "rewarding":

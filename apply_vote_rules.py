@@ -120,10 +120,23 @@ if __name__ == "__main__":
         
         if len(fitting_rules) == 0:
             continue
-        try:
-            c = Comment(authorperm, steem_instance=stm)
-        except:
-            continue
+        
+        cnt = 0
+        c = None
+        while c is None and cnt < 5:
+            cnt += 1
+            try:
+                c = Comment(authorperm, steem_instance=stm)
+                c.refresh()
+            except:
+                nodelist = NodeList()
+                nodelist.update_nodes()
+                stm = Steem(node=nodelist.get_nodes(), num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
+                time.sleep(1)
+        if cnt == 5:
+            print("Could not read %s" % (authorperm))
+            continue        
+
         voters = []
         for v in c["active_votes"]:
             voters.append(v["voter"])
@@ -153,7 +166,7 @@ if __name__ == "__main__":
                                 "vp_reached_order": rule["vp_reached_order"], "max_net_votes": rule["max_net_votes"], "max_pending_payout": rule["max_pending_payout"],
                                 "max_votes_per_day": rule["max_votes_per_day"], "max_votes_per_week": rule["max_votes_per_week"], "vp_scaler": rule["vp_scaler"], "leave_comment": rule["leave_comment"],
                                 "maximum_vote_delay_min": rule["maximum_vote_delay_min"], "vote_sbd": rule["vote_sbd"],
-                                "main_post": rule["main_post"]}
+                                "main_post": rule["main_post"], "pending_vote_timestamp": c["created"].replace(tzinfo=None) + timedelta(seconds=rule["vote_delay_min"]/60)}
                 pendingVotesTrx.add(pending_vote)
 
     confStorage.update({"last_processed_timestamp": last_processed_timestamp})

@@ -24,6 +24,7 @@ from steemrewarding.vote_storage import VotesTrx
 from steemrewarding.utils import isfloat
 from steemrewarding.version import version as rewardingversion
 from steemrewarding.broadcast_vote_storage import BroadcastVoteTrx
+from steemrewarding.pending_vote_storage import PendingVotesTrx
 import dataset
 from nltk.tokenize import RegexpTokenizer
 
@@ -53,6 +54,8 @@ if __name__ == "__main__":
     commandsTrx = CommandsTrx(db)
     trailVoteRuleTrx = TrailVoteRulesTrx(db)
     broadcastVoteTrx = BroadcastVoteTrx(db)
+    pendingVotesTrx = PendingVotesTrx(db)
+    
     
     conf_setup = confStorage.get()
     last_streamed_block = conf_setup["last_streamed_block"]
@@ -101,6 +104,9 @@ if __name__ == "__main__":
     print("deleting old posts and votes")
     postTrx.delete_old_posts(6)
     voteTrx.delete_old_votes(6)
+    broadcastVoteTrx.delete_old_votes(7)
+    pendingVotesTrx.delete_old_votes(7)
+    print("Parsing new blocks")
     # print("reading all authorperm")
     already_voted_posts = []
     flagged_posts = []
@@ -173,13 +179,23 @@ if __name__ == "__main__":
             print("blocks left %d - post found: %d" % (ops["block_num"] - stop_block, len(posts_dict)))
         authorperm = construct_authorperm(ops)
         
-        try:
-            c = Comment(authorperm, steem_instance=stm)
-        except:
+        
+        cnt = 0
+        c = None
+        while c is None and cnt < 5:
+            cnt += 1
             try:
                 c = Comment(authorperm, steem_instance=stm)
+                c.refresh()
             except:
-                continue            
+                nodelist = NodeList()
+                nodelist.update_nodes()
+                stm = Steem(node=nodelist.get_nodes(), num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
+                time.sleep(1)
+        if cnt == 5:
+            print("Could not read %s" % (authorperm))
+            continue        
+         
         main_post = c.is_main_post()
         dt_created = c["created"]
         dt_created = dt_created.replace(tzinfo=None)        

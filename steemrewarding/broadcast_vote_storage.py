@@ -111,13 +111,44 @@ class BroadcastVoteTrx(object):
         for data in table.find(valid=True, expired=False, expiration = {'<': timestamp}):
             ret.append(data)
         return ret
+    
+    def get_vote_with_comment(self):
+        table = self.db[self.__tablename__]
+        ret = []
+        for data in table.find(leave_comment=True, comment_broadcasted=False):
+            ret.append(data)
+        return ret
+
+    def get_vote_without_votelog(self):
+        table = self.db[self.__tablename__]
+        ret = []
+        for data in table.find(vote_log_added=False):
+            ret.append(data)
+        return ret
 
     def get_all_expired(self):
         table = self.db[self.__tablename__]
         ret = []
-        for data in table.find(valid=True, expired=False, trx=None):
+        for data in table.find(valid=True, trx=None, order_by='vote_timestamp'):
             ret.append(data)
         return ret
+
+    def delete(self, authorperm, voter):
+        table = self.db[self.__tablename__]
+        table.delete(authorperm=authorperm, voter=voter)
+
+    def delete_old_votes(self, days):
+        table = self.db[self.__tablename__]
+        del_votes = []
+        for vote in table.find(order_by='expiration'):
+            if vote["expiration"] is None:
+                continue
+            if (datetime.utcnow() - vote["expiration"]).total_seconds() > 60 * 60 * 24 * days:
+                del_votes.append({"authorperm": vote["authorperm"], "voter": vote["voter"]})
+        self.db.begin()
+        for vote in del_votes:
+            table.delete(authorperm=vote["authorperm"], voter=vote["voter"])
+        self.db.commit()
 
     def wipe(self, sure=False):
         """Purge the entire database. No data set will survive this!"""
