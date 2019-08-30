@@ -96,14 +96,13 @@ if __name__ == "__main__":
     tokenizer = RegexpTokenizer(r'\w+')
  
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
-    if "https://api.steemit.com" in node_list:
-        node_list.remove("https://api.steemit.com")    
+
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
-    
+    print("user node %s" % str(stm))
     b = Blockchain(mode="head", steem_instance = stm)
     print("deleting old posts and votes")
     postTrx.delete_old_posts(6)
-    voteTrx.delete_old_votes(6)
+    voteTrx.delete_old_votes(8)
     broadcastVoteTrx.delete_old_votes(7)
     pendingVotesTrx.delete_old_votes(7)
     print("Parsing new blocks")
@@ -142,9 +141,6 @@ if __name__ == "__main__":
             if unprocessed_vote is not None:
                 broadcastVoteTrx.update_processed(ops["voter"], authorperm, ops["trx_id"], True, False)
                 
-            if ops["voter"] not in voter_list:
-                continue
-            
             timestamp = ops["timestamp"].replace(tzinfo=None)
             weight = ops["weight"] / STEEM_100_PERCENT * 100
             voteTrx.add({"authorperm": authorperm, "voter": ops["voter"], "block": ops["block_num"], "timestamp": timestamp, "weight": weight})
@@ -185,13 +181,20 @@ if __name__ == "__main__":
         while c is None and cnt < 5:
             cnt += 1
             try:
-                c = Comment(authorperm, steem_instance=stm)
+                if cnt <= 2:
+                    c = Comment(authorperm, use_tags_api=False, steem_instance=stm)
+                else:
+                    c = Comment(authorperm, use_tags_api=True, steem_instance=stm)
+                    
                 c.refresh()
-            except:
+            except Exception as e:
+                print(e)
                 nodelist = NodeList()
                 nodelist.update_nodes()
                 stm = Steem(node=nodelist.get_nodes(), num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
-                time.sleep(1)
+                #stm.rpc.next()
+                print("Switch to %s" % str(stm))
+                #time.sleep(1)
         if cnt == 5:
             print("Could not read %s" % (authorperm))
             continue        
@@ -234,10 +237,10 @@ if __name__ == "__main__":
                 elif isinstance(app, dict):
                     app = ""
             word_count = len(tokenizer.tokenize(c.body))
-            net_votes = len(c["active_votes"])
+            net_votes = 0 #len(c.get_votes())
             vote_rshares = 0
-            for v in c["active_votes"]:
-                vote_rshares += int(v["rshares"])
+            #for v in c.get_votes():
+            #    vote_rshares += int(v["rshares"])
             tags = ""
             if "tags" in c and c["tags"] is not None:
                 for t in c["tags"]:
@@ -249,7 +252,7 @@ if __name__ == "__main__":
                 continue
             posts_dict[authorperm] = {"authorperm": authorperm, "author": ops["author"], "created": dt_created, "block": ops["block_num"],
                                       "main_post": main_post, "tags": tags, "app": app, "decline_payout": int(c["max_accepted_payout"]) == 0,
-                                      "word_count": word_count, "net_votes": net_votes, "vote_rshares": vote_rshares, "pending_payout_value": float(c["pending_payout_value"]),
+                                      "word_count": word_count, "net_votes": net_votes, "vote_rshares": vote_rshares, "pending_payout_value": 0,
                                       "update": datetime.utcnow()}
         
         if len(posts_dict) > 0:

@@ -87,6 +87,8 @@ if __name__ == "__main__":
         if vote_log is not None:
             authorperm = vote_log["authorperm"]
             # print(vote_log["authorperm"])
+            if vote_log["vote_weight"] <= 0:
+                continue
             if n == 15:
                 print("performance vote last  update %s" % str(vote_log["last_update"]))
             try:

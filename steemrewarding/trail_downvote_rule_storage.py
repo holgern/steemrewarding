@@ -28,10 +28,10 @@ log.addHandler(logging.StreamHandler())
 timeformat = "%Y%m%d-%H%M%S"
 
 
-class VotesTrx(object):
+class TrailDownVoteRulesTrx(object):
     """ This is the trx storage class
     """
-    __tablename__ = 'votes'
+    __tablename__ = 'trail_downvote_rules'
 
     def __init__(self, db):
         self.db = db
@@ -52,7 +52,14 @@ class VotesTrx(object):
 
         """
         table = self.db[self.__tablename__]
-        table.upsert(data, ["authorperm", "voter"])
+        table.upsert(data, ["voter_to_follow", "account"])
+ 
+    def update(self, data):
+        """ Add a new data set
+
+        """
+        table = self.db[self.__tablename__]
+        table.update(data, ["voter_to_follow", "account"])
 
     def add_batch(self, data):
         """ Add a new data set
@@ -63,11 +70,11 @@ class VotesTrx(object):
         if isinstance(data, list):
             #table.insert_many(data, chunk_size=chunk_size)
             for d in data:
-                table.upsert(d, ["authorperm", "voter"])
+                table.upsert(d, ["voter_to_follow", "account"])
         else:
             
             for d in data:
-                table.upsert(data[d], ["authorperm", "voter"])            
+                table.upsert(data[d], ["voter_to_follow", "account"])            
             
         self.db.commit()
 
@@ -79,84 +86,54 @@ class VotesTrx(object):
         self.db.begin()
         if isinstance(data, list):
             for d in data:
-                table.update(d, ["authorperm", "voter"])
+                table.update(d, ["voter_to_follow", "account"])
         else:
             for d in data:
-                table.update(data[d], ["authorperm", "voter"])            
+                table.update(data[d], ["voter_to_follow", "account"])            
         self.db.commit()
 
-    def update_processed(self, authorperm, processed):
-        """ Change share_age depending on timestamp
+    def get_trail_voters(self):
+        table = self.db[self.__tablename__]
+        data = [] 
+        for v in table.find():
+            if v["voter_to_follow"] not in data:
+                data.append(v["voter_to_follow"])
+        return data
 
+
+    def get_accounts(self):
+        table = self.db[self.__tablename__]
+        data = [] 
+        for v in table.all():
+            if v["account"] not in data:
+                data.append(v["account"])
+        return data
+
+    def get(self, voter_to_follow, account):
+        table = self.db[self.__tablename__]
+        return table.find_one(voter_to_follow=voter_to_follow, account=account)
+
+    def get_rules(self, voter_to_follow):
+        table = self.db[self.__tablename__]
+        data = [] 
+        for v in table.find(voter_to_follow=voter_to_follow):
+            data.append(v)
+        return data
+
+    def get_rules_by_account(self, account):
+        table = self.db[self.__tablename__]
+        data = [] 
+        for v in table.find(account=account):
+            data.append(v)
+        return data
+    
+    def delete(self, voter_to_follow, account):
+        """ Delete a data set
+
+           :param int ID: database id
         """
         table = self.db[self.__tablename__]
-        data = dict(authorperm=authorperm, processed=processed)
-        table.update(data, ['authorperm', "voter"])
-
-    def get_latest_vote(self):
-        table = self.db[self.__tablename__]
-        ret = table.find_one(order_by='-timestamp')
-        if ret is None:
-            return None
-        return ret
-
-    def get_latest_block(self):
-        table = self.db[self.__tablename__]
-        ret = table.find_one(order_by='-timestamp')
-        if ret is None:
-            return None
-        return ret["block"]
-
-    def get_voter_votes(self, voter):
-        table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(voter=voter, order_by='timestamp'):
-            posts.append(post)
-        return posts
-
-    def get_authorperm_votes(self, authorperm):
-        table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(authorperm=authorperm, order_by='timestamp'):
-            posts.append(post)
-        return posts
-
-    def get_vote(self, authorperm, voter):
-        table = self.db[self.__tablename__]
-        posts = None
-        for post in table.find(authorperm=authorperm, voter=voter):
-            posts = post
-        return posts
-
-    def get_votes_list(self):
-        table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(order_by='timestamp'):
-            posts.append(post)
-        return posts
-
-    def get_authorperm_list(self):
-        table = self.db[self.__tablename__]
-        posts = []
-        for post in table.find(order_by='timestamp'):
-            posts.append(post["authorperm"])
-        return posts
-
-    def get_votes_list(self, start_timestamp):
-        table = self.db[self.__tablename__]
-        votes = []
-        for vote in table.find(table.table.columns.timestamp >  start_timestamp, order_by='timestamp'):
-            votes.append(vote)
-        return votes
-
-    def delete_old_votes(self, days):
-        table = self.db[self.__tablename__]
-        del_votes = []
-        for post in table.find(order_by='timestamp'):
-            if (datetime.utcnow() - post["timestamp"]).total_seconds() > 60 * 60 * 24 * days:
-                del_votes.append(post)
-        for vote in del_votes:
-            table.delete(authorperm=vote["authorperm"], voter=vote["voter"])
+        table.delete(voter_to_follow=voter_to_follow, account=account)
 
     def wipe(self, sure=False):
         """Purge the entire database. No data set will survive this!"""

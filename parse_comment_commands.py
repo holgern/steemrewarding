@@ -43,7 +43,7 @@ if __name__ == "__main__":
     start_prep_time = time.time()
     db = dataset.connect(databaseConnector)
     # Create keyStorage
-    
+    print("Start parse_comment_commands.py")
     nobroadcast = False
     # nobroadcast = True    
 
@@ -88,8 +88,7 @@ if __name__ == "__main__":
         print("could not update nodes")
     
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
-    if "https://api.steemit.com" in node_list:
-        node_list.remove("https://api.steemit.com")    
+ 
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     stm.unlock(wallet_password)
     
@@ -106,7 +105,7 @@ if __name__ == "__main__":
         if vote_sbd is not None and vote_sbd > 0:
             vote_weight = 0
         
-        c_comment = Comment(command["authorperm"], steem_instance=stm)
+        c_comment = Comment(command["authorperm"], use_tags_api=False, steem_instance=stm)
         voter = c_comment["author"]
         
         voter_acc = Account(voter, steem_instance=stm)
@@ -116,7 +115,7 @@ if __name__ == "__main__":
                 posting_auth = True
         
         already_voted = False
-        for v in c_comment["active_votes"]:
+        for v in c_comment.get_votes():
             if v["voter"] == rewarding_account:
                 already_voted = True
         if already_voted:

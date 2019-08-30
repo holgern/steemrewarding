@@ -72,7 +72,7 @@ if __name__ == "__main__":
     node_list = nodes.get_nodes(exclude_limited=False)
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     stm.wallet.unlock(wallet_password)
-    
+    print("Use node %s" % str(stm))
     last_voter = None
     for vote in broadcastVoteTrx.get_all_expired():
         if last_voter is not None and last_voter == vote["voter"]:
@@ -174,7 +174,10 @@ if __name__ == "__main__":
             continue
         
         try:
-            c = Comment(pending_vote["authorperm"], steem_instance=stm)
+            if pending_vote["max_pending_payout"] >= 0:
+                c = Comment(pending_vote["authorperm"], use_tags_api=True, steem_instance=stm)
+            else:
+                c = Comment(pending_vote["authorperm"], use_tags_api=False, steem_instance=stm)            
         except:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Could not process %s" % (pending_vote["authorperm"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],

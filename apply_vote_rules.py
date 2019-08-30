@@ -39,7 +39,7 @@ if __name__ == "__main__":
     start_prep_time = time.time()
     db = dataset.connect(databaseConnector)
     # Create keyStorage
-    
+    print("Start apply_vote_rules.py")
     nobroadcast = False
     # nobroadcast = True    
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         while c is None and cnt < 5:
             cnt += 1
             try:
-                c = Comment(authorperm, steem_instance=stm)
+                c = Comment(authorperm, use_tags_api=False, steem_instance=stm)
                 c.refresh()
             except:
                 nodelist = NodeList()
@@ -138,8 +138,8 @@ if __name__ == "__main__":
             continue        
 
         voters = []
-        for v in c["active_votes"]:
-            voters.append(v["voter"])
+        #for v in c.get_votes():
+        #    voters.append(v["voter"])
         
         not_processed_rules = []
         for r in fitting_rules:

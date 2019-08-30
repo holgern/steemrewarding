@@ -1,0 +1,18 @@
+[Unit]
+Description=rewarding accounts
+After=syslog.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/git/steemrewarding
+ExecStart=/root/git/steemrewarding/rewarding_account_update.sh
+SyslogIdentifier=rewardingupdate
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -20,6 +20,7 @@ from steemrewarding.vote_rule_storage import VoteRulesTrx
 from steemrewarding.pending_vote_storage import PendingVotesTrx
 from steemrewarding.config_storage import ConfigurationDB
 from steemrewarding.trail_vote_rule_storage import TrailVoteRulesTrx
+from steemrewarding.trail_downvote_rule_storage import TrailDownVoteRulesTrx
 from steemrewarding.utils import isfloat, tags_included, tags_excluded, string_included, string_excluded
 from steemrewarding.version import version as rewardingversion
 import dataset
@@ -42,9 +43,10 @@ if __name__ == "__main__":
     
     nobroadcast = False
     # nobroadcast = True    
-
+    
     votesTrx = VotesTrx(db)
     trailVoteRulesTrx = TrailVoteRulesTrx(db)
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
     voteRulesTrx = VoteRulesTrx(db)
     confStorage = ConfigurationDB(db)
     pendingVotesTrx = PendingVotesTrx(db)
@@ -53,6 +55,7 @@ if __name__ == "__main__":
     last_vote = conf_setup["last_vote"]
     if last_vote is None:
         last_vote = datetime(1970,1,1,0,0,0)
+    print("Start apply_trail_vote_rules.py - last vote %s" % str(last_vote))
     if True:
         max_batch_size = 50
         threading = False
@@ -83,20 +86,26 @@ if __name__ == "__main__":
         print("could not update nodes")
     
     node_list = nodes.get_nodes(normal=normal, appbase=appbase, wss=wss, https=https)
-    if "https://api.steemit.com" in node_list:
-        node_list.remove("https://api.steemit.com")    
+
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
     
     pendingVotesTrx.delete_old_votes(6.4)
-    
+    parsed_votes = 0
     for vote in votesTrx.get_votes_list(last_vote):
+        parsed_votes += 1
         authorperm = vote["authorperm"]
         voter = vote["voter"]
         weight = vote["weight"]
         last_vote = vote["timestamp"]
-        rules = trailVoteRulesTrx.get_rules(voter)
+        rules = []
+        if weight > 0:
+            rules = trailVoteRulesTrx.get_rules(voter)
+        else:
+            rules = trailDownVoteRulesTrx.get_rules(voter)
+            
         if len(rules) == 0:
             continue
+        # print(rules)
         fitting_rules = []
         
         cnt = 0
@@ -104,7 +113,7 @@ if __name__ == "__main__":
         while post is None and cnt < 5:
             cnt += 1
             try:
-                post = Comment(authorperm, steem_instance=stm)
+                post = Comment(authorperm, use_tags_api=False, steem_instance=stm)
                 post.refresh()
             except:
                 nodelist = NodeList()
@@ -119,30 +128,38 @@ if __name__ == "__main__":
         for rule in rules:
             # print(rule)
             if not string_included(rule["include_authors"], post["author"]):
+                print("Skip %s - include_authors" % rule["account"])
                 continue
             if not string_excluded(rule["exclude_authors"], post["author"]):
+                print("Skip %s - exclude_authors" % rule["account"])
                 continue
 
             if not tags_included(rule["include_tags"], post["tags"]):
+                print("Skip %s - include_tags %s" % (rule["account"], rule["include_tags"]))
                 continue
             if not tags_excluded(rule["exclude_tags"], post["tags"]):
+                print("Skip %s - exclude_tags" % rule["account"])
                 continue
             if rule["only_main_post"] and post.is_comment():
+                print("Skip %s - only_main_post" % rule["account"])
                 continue
             if rule["exclude_authors_with_vote_rule"]:
                 vote_rule = voteRulesTrx.get(rule["account"], post["author"], not post.is_comment())
                 if vote_rule is not None and vote_rule["enabled"]:
+                    print("Skip %s - exclude_authors_with_vote_rule" % rule["account"])
                     continue
-            if rule["exclude_declined_payout"] and int(post["max_accepted_payout"]) == 0:
+            if "exclude_declined_payout" in rule and "max_accepted_payout" in post and rule["exclude_declined_payout"] and int(post["max_accepted_payout"]) == 0:
+                print("Skip %s - exclude_declined_payout" % rule["account"])
                 continue
   
             fitting_rules.append(rule)
         
         if len(fitting_rules) == 0:
             continue
+        print("Fitting rules %d" % len(fitting_rules))
         voters = []
-        for v in post["active_votes"]:
-            voters.append(v["voter"])
+        #for v in post.get_votes():
+        #    voters.append(v["voter"])
         
         not_processed_rules = []
         for r in fitting_rules:
@@ -157,11 +174,16 @@ if __name__ == "__main__":
         for rule in not_processed_rules:
                 
             if rule["enabled"]:
-                vote_weight = rule["vote_weight_scaler"] * weight / 100 + rule["vote_weight_offset"]
+                if weight < 0:
+                    
+                    vote_weight = (rule["vote_weight_scaler"] * abs(weight) / 100 + rule["vote_weight_offset"]) * -1
+                else:
+                    vote_weight = rule["vote_weight_scaler"] * abs(weight) / 100 + rule["vote_weight_offset"]
                 if vote_weight > 100:
                     vote_weight = 100
-                if vote_weight < 0:
-                    vote_weight = 0
+                if vote_weight < -100:
+                    vote_weight = -100
+
                 pending_vote = {"authorperm": authorperm, "voter": rule["account"], "vote_weight": vote_weight, "comment_timestamp": post["created"].replace(tzinfo=None),
                                 "vote_delay_min": rule["minimum_vote_delay_min"], "created": datetime.utcnow(), "min_vp": rule["min_vp"], "vote_when_vp_reached": rule["vote_when_vp_reached"],
                                 "vp_reached_order": rule["vp_reached_order"], "max_net_votes": rule["max_net_votes"], "max_pending_payout": rule["max_pending_payout"],
@@ -171,4 +193,4 @@ if __name__ == "__main__":
                 pendingVotesTrx.add(pending_vote)
 
     confStorage.update({"last_vote": last_vote})
-    print("check votes script run %.2f s" % (time.time() - start_prep_time))
+    print("check %d votes script run %.2f s" % (parsed_votes, time.time() - start_prep_time))

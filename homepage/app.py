@@ -52,6 +52,7 @@ from beem.constants import state_object_size_info, resource_execution_time
 from wtforms import Form, StringField, SelectField, validators, BooleanField, FloatField, IntegerField, TextAreaField
 from steemrewarding.vote_rule_storage import VoteRulesTrx
 from steemrewarding.trail_vote_rule_storage import TrailVoteRulesTrx
+from steemrewarding.trail_downvote_rule_storage import TrailDownVoteRulesTrx
 from steemrewarding.vote_log_storage import VoteLogTrx
 from steemrewarding.pending_vote_storage import PendingVotesTrx
 from steemrewarding.failed_vote_log_storage import FailedVoteLogTrx
@@ -211,6 +212,54 @@ class TrailResults(Table):
         return url_for('show_trail_rules', sort=col_key, direction=direction)    
 
 
+
+class TrailDownVoteResults(Table):
+    edit = LinkCol('Edit', 'edit_trail_downvote_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'), allow_sort = False)
+    copy = LinkCol('Copy', 'edit_trail_downvote_rule', url_kwargs=dict(voter_to_follow='voter_to_follow', copy_rule='enabled'), allow_sort = False)
+    delete = LinkCol('Delete', 'delete_trail_downvote_rule', url_kwargs=dict(voter_to_follow='voter_to_follow'), allow_sort = False)
+    voter_to_follow = Col('voter to follow')
+    # account = Col('account')
+    only_main_post = BoolCol('only main post', allow_sort = False)
+    enabled = BoolCol('enabled', allow_sort = False)
+
+    vote_weight_treshold = Col('downvote weight treshold')
+    vote_weight_scaler = Col('downvote weight scaler [%]')
+    vote_weight_offset = Col('downvote weight offset [%]')
+    
+    minimum_vote_delay_min = Col('min. vote_delay [min]')
+    maximum_vote_delay_min = Col('max. vote_delay [min]')    
+  
+    
+    max_votes_per_day = Col('max downvotes per day')
+    max_votes_per_week = Col('max downvotes per week')    
+    
+    min_vp = Col('min down vp [%]')
+    vp_scaler = Col('down vp scaler', allow_sort = False)
+    
+    vote_when_vp_reached = BoolCol('downvote when vp reached', allow_sort = False)
+    vp_reached_order = Col('down vp reached order', allow_sort = False)
+    exclude_authors_with_vote_rule = BoolCol('exclude authors with vote rule', allow_sort = False)
+    
+    include_authors = Col('include authors', allow_sort = False)
+    exclude_authors = Col('exclude authors', allow_sort = False)    
+    include_tags = Col('include tags', allow_sort = False)
+    exclude_tags = Col('exclude tags', allow_sort = False)
+    note = Col('note', allow_sort = False)
+
+    exclude_declined_payout = BoolCol('exclude declined payout', allow_sort = False)
+    max_net_votes = Col('max. net downvotes', allow_sort = False)
+    max_pending_payout = Col('max. pending payout [$]', allow_sort = False)
+
+    # edit = LinkCol('Edit', 'edit', url_kwargs=dict(voter='voter'))
+    allow_sort = True
+    def sort_url(self, col_key, reverse=False):
+        if col_key in ["voter_to_follow", "vote_weight", "minimum_vote_delay_min", "min_vp"]:
+            direction = 'asc'
+        else:
+            direction = 'desc'
+        return url_for('show_trail_rules', sort=col_key, direction=direction)  
+    
+
 class VotesLog(Table):
     edit = LinkCol('Edit', 'edit_rule', url_kwargs=dict(author='author', main_post='main_post', voter_to_follow='voter_to_follow'), allow_sort = False)
     authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', frontend=frontend, allow_sort=False)
@@ -257,12 +306,13 @@ class SettingsForm(FlaskForm):
     frontend = TextAreaField('Frontend-URL', default="https://steemit.com/")
     sliding_time_window = BooleanField('sliding_time_window (When true, votes for max_votes_per_day are counting for the last 24 hours, When False, votes for max_votes_per_day are counted from 0:0:0 UTC, some is done for max_votes_per_week)', default=True)
     pause_votes_below_vp = FloatField('Pause all votes when Vote power is below this value.', default=0.0)
+    pause_down_votes_below_down_vp = FloatField('Pause all downvotes when DownVote power is below this value.', default=0.0)
 
 
 class VoteForm(FlaskForm):
 
     authorperm = TextAreaField('authorperm')
-    vote_delay_min = FloatField('vote_delay_min', default=15.0)
+    vote_delay_min = FloatField('vote_delay_min', default=5.0)
     vote_weight = FloatField('vote_weight', default=100.0)
     vote_when_vp_reached = BooleanField('vote_when_vp_reached (When true, posts/comments are upvoted when min_vp is reached)', default=True)
     min_vp = FloatField('min_vp [%] - minimum vote power', default=50.0)
@@ -277,7 +327,7 @@ class RuleForm(FlaskForm):
 
     author = StringField('author (must not be empty!)')
     main_post = BooleanField('main_post (When True, only posts will be upvoted)', default=True)
-    vote_delay_min = FloatField('vote_delay_min [minutes]', default=15.0)
+    vote_delay_min = FloatField('vote_delay_min [minutes]', default=5.0)
     maximum_vote_delay_min = FloatField('maximum_vote_delay_min [minutes] - vote is skipped when older', default=9360.0)
     vote_weight = FloatField('vote_weight [%]', default=100.0)
     
@@ -318,7 +368,7 @@ class TrailRuleForm(FlaskForm):
 
     enabled = BooleanField('enabled', default=True)
     
-    minimum_vote_delay_min = FloatField('minimum_vote_delay_min [minutes] - vote is delayed when earlier', default=13.0)
+    minimum_vote_delay_min = FloatField('minimum_vote_delay_min [minutes] - vote is delayed when earlier', default=5.0)
     maximum_vote_delay_min = FloatField('maximum_vote_delay_min [minutes] - vote is skipped when older', default=9360.0)    
     
     exclude_authors_with_vote_rule = BooleanField('exclude_authors_with_vote_rule - exclude all authors that have an enabled vote rule', default=False)
@@ -342,7 +392,45 @@ class TrailRuleForm(FlaskForm):
     max_net_votes = IntegerField('max_net_votes', default=-1)
     max_pending_payout = FloatField('max_pending_payout', default=-1.0)
     note = TextAreaField("Note (You can leave a note here, it has no influence to the rule)")
+
+
+class TrailDownVoteRuleForm(FlaskForm):
+
+    voter_to_follow = StringField('vote to follow (must not be empty!)')
+    # account = StringField("StringField")
+    only_main_post = BooleanField('only_main_post (When True, only posts will be upvoted)', default=True)
+    vote_weight_treshold = FloatField('vote_weight_treshold - skip downvotes with lower weight', default=0.0)
     
+    vote_weight_scaler = FloatField('vote_weight_scaler [%] - scales the downvote weight (e.g. 50% will halve the weight, 200% will double it)', default=50.0)
+    vote_weight_offset = FloatField('vote_weight_offset [%] - the offset is added to the weight after scaling the vote', default=0.0)
+
+    enabled = BooleanField('enabled', default=True)
+    
+    minimum_vote_delay_min = FloatField('minimum_vote_delay_min [minutes] - downvote is delayed when earlier', default=5.0)
+    maximum_vote_delay_min = FloatField('maximum_vote_delay_min [minutes] - downvote is skipped when older', default=9360.0)    
+    
+    exclude_authors_with_vote_rule = BooleanField('exclude_authors_with_vote_rule - exclude all authors that have an enabled vote rule', default=False)
+    
+    include_authors = TextAreaField('include_authors - When set, only the given authors will be downvoted. Use comma for seperation.')
+    exclude_authors = TextAreaField('exclude_authors - When set, given authors will not be downvoted. Use comma for seperation.')    
+    
+    include_tags = TextAreaField('include_tags - When set, only the given tags will be downvoted. Use comma for seperation.')
+    exclude_tags = TextAreaField('exclude_tags - When set, given tags will not be downvoted. Use comma for seperation.')
+    
+    max_votes_per_day = IntegerField('max_votes_per_day', default=-1)
+    max_votes_per_week = IntegerField('max_votes_per_week', default=-1)
+
+    min_vp = FloatField('min_vp [%] - minimum downvote power', default=90.0)
+    vp_scaler = FloatField('vp_scaler  [0-1] - When greater than 0, it can be used to adapt the downvote weight to the downvote power. vote weight = 100 - ((100-vp) *vp_scaler)).', default=0.0)
+    
+    vote_when_vp_reached = BooleanField('vote_when_vp_reached (When true, posts/comments are downvoted when min down vp is reached)', default=True)
+    vp_reached_order = IntegerField('vp_reached_order (defines the down vote order for vote_when_vp_reached=True, 1 goes first)', default=1)
+    
+    exclude_declined_payout = BooleanField('exclude_declined_payout', default=True)
+    max_net_votes = IntegerField('max_net_votes', default=-1)
+    max_pending_payout = FloatField('max_pending_payout', default=-1.0)
+    note = TextAreaField("Note (You can leave a note here, it has no influence to the rule)")
+
 
 class PendingVotes(Table):
     authorperm = ExternalURLCol('authorperm', url_attr='authorperm', attr='authorperm', frontend=frontend)
@@ -420,6 +508,31 @@ def set_form_trail_votes(form, rule):
     form.note.data = rule["note"]
     return form
 
+def set_form_trail_downvotes(form, rule):
+    form.voter_to_follow.data = rule["voter_to_follow"]
+    form.only_main_post.data = rule["only_main_post"]
+    form.vote_weight_treshold.data = rule["vote_weight_treshold"]
+    form.include_authors.data = rule["include_authors"]
+    form.exclude_authors.data = rule["exclude_authors"]
+    form.min_vp.data = rule["min_vp"]
+    form.vote_weight_scaler.data = rule["vote_weight_scaler"]
+    form.vote_weight_offset.data = rule["vote_weight_offset"]
+    form.max_votes_per_day.data = rule["max_votes_per_day"]
+    form.max_votes_per_week.data = rule["max_votes_per_week"]
+    form.vote_when_vp_reached.data = rule["vote_when_vp_reached"]
+    form.vp_reached_order.data = rule["vp_reached_order"]
+    form.exclude_authors_with_vote_rule.data = rule["exclude_authors_with_vote_rule"]
+    form.include_tags.data = rule["include_tags"]
+    form.exclude_tags.data = rule["exclude_tags"]
+    form.exclude_declined_payout.data = rule["exclude_declined_payout"]
+    form.minimum_vote_delay_min.data = rule["minimum_vote_delay_min"]
+    form.maximum_vote_delay_min.data = rule["maximum_vote_delay_min"]
+    form.enabled.data = rule["enabled"]
+    form.max_net_votes.data = rule["max_net_votes"]
+    form.max_pending_payout.data = rule["max_pending_payout"]
+    form.vp_scaler.data = rule["vp_scaler"]
+    form.note.data = rule["note"]
+    return form
 
 def rule_dict_from_form(voter, form):
     """
@@ -460,6 +573,23 @@ def trail_rule_dict_from_form(account, form):
 
     return rule
 
+def trail_downvote_rule_dict_from_form(account, form):
+    """
+    Save the changes to the database
+    """
+
+    rule = {"account": account, "voter_to_follow": form.voter_to_follow.data, "only_main_post": form.only_main_post.data,
+            "vote_weight_treshold": form.vote_weight_treshold.data, "include_authors": form.include_authors.data,
+            "exclude_authors": form.exclude_authors.data, "min_vp": form.min_vp.data,
+            "vote_when_vp_reached": form.vote_when_vp_reached.data, "vp_reached_order": form.vp_reached_order.data,
+            "vote_weight_scaler": form.vote_weight_scaler.data, "vote_weight_offset": form.vote_weight_offset.data, "max_votes_per_day": form.max_votes_per_day.data,
+            "max_votes_per_week": form.max_votes_per_week.data, "include_tags": form.include_tags.data,
+            "exclude_tags": form.exclude_tags.data, "exclude_declined_payout": form.exclude_declined_payout.data,
+            "minimum_vote_delay_min": form.minimum_vote_delay_min.data, "exclude_authors_with_vote_rule": form.exclude_authors_with_vote_rule.data,
+            "maximum_vote_delay_min": form.maximum_vote_delay_min.data, "enabled": form.enabled.data, "max_net_votes": form.max_net_votes.data,
+            "max_pending_payout": form.max_pending_payout.data, "vp_scaler": form.vp_scaler.data, "note": form.note.data}
+
+    return rule
 
 def vote_dict_from_form(voter, form):
     """
@@ -485,7 +615,8 @@ def settings_dict_from_form(account, form):
                 "minimum_vote_delay": form.minimum_vote_delay.data, "maximum_vote_delay": form.maximum_vote_delay.data,
                 "optimize_ma_length": form.optimize_ma_length.data, "optimize_threshold": form.optimize_threshold.data,
                 "rshares_divider": form.rshares_divider.data, "frontend": form.frontend.data, "sliding_time_window": form.sliding_time_window.data,
-                "optimize_vote_delay_slope": form.optimize_vote_delay_slope.data, "pause_votes_below_vp": form.pause_votes_below_vp.data}
+                "optimize_vote_delay_slope": form.optimize_vote_delay_slope.data, "pause_votes_below_vp": form.pause_votes_below_vp.data,
+                "pause_down_votes_below_down_vp": form.pause_down_votes_below_down_vp.data}
     return settings
 
 def login(func):
@@ -610,6 +741,32 @@ def show_trail_rules():
     table.table_id = "rules"
     table.classes  = ["display"] 
     return render_template('show_trail_rules.html', table=table, user=name)
+
+@app.route('/show_trail_downvote_rules', methods=['GET'])
+@login
+def show_trail_downvote_rules():
+    sort = request.args.get('sort', 'voter_to_follow')
+    reverse = (request.args.get('direction', 'asc') == 'desc')      
+    name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+ 
+    try:
+        rules = trailDownVoteRulesTrx.get_rules_by_account(name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+        rules = trailDownVoteRulesTrx.get_rules_by_account(name)
+    try:
+        sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_rules = rules      
+    table = TrailDownVoteResults(sorted_rules)
+    table.border = True
+    table.table_id = "rules"
+    table.classes  = ["display"] 
+    return render_template('show_trail_downvote_rules.html', table=table, user=name)
+
 
 @app.route('/show_vote_log', methods=['GET'])
 @login
@@ -744,6 +901,40 @@ def api_new_trail_vote_rule():
     
     trailVoteRulesTrx.add(rule)
     rule = trailVoteRulesTrx.get(voter_to_follow, name)    
+        
+    return jsonify(rule)
+
+@app.route('/api/new_trail_downvote_rule', methods=['GET', 'POST'])
+def api_new_trail_downvote_rule():
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    voter_to_follow = json_data.get("voter_to_follow", None)
+
+    if access_token is None:
+        return jsonify({})
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify({})
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+    rule = {"voter_to_follow": voter_to_follow, "account": name}
+    for key in json_data:
+        if key in ["voter_to_follow", "account"]:
+            continue
+        if key not in ["only_main_post", "vote_weight_treshold", "include_authors", "exclude_authors", "min_vp", "vote_weight_scaler", "vote_weight_offset", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "exclude_declined_payout", "minimum_vote_delay_min", "maximum_vote_delay_min", "enabled", "max_net_votes", "max_pending_payout", "vp_scaler", "scale_weight_to_voter_vp_diff", "vote_when_vp_reached", "vp_reached_order", "vote_sbd", "exclude_authors_with_vote_rule", "note", "vote_delay_scaler"]:
+            continue
+        value = json_data.get(key, None)
+        if value == None:
+            continue
+        rule[key] = value
+    
+    trailDownVoteRulesTrx.add(rule)
+    rule = trailDownVoteRulesTrx.get(voter_to_follow, name)    
         
     return jsonify(rule)
 
@@ -902,6 +1093,31 @@ def api_delete_trail_vote_rule():
     rule = trailVoteRulesTrx.get(voter_to_follow, name)
     return jsonify(rule)
 
+@app.route('/api/delete_trail_downvote_rule', methods=['GET', 'POST'])
+def api_delete_trail_downvote_rule():
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    voter_to_follow = json_data.get("voter_to_follow", None)
+    try:
+        main_post = bool(main_post)
+    except:
+        return jsonify({})
+    if access_token is None:
+        return jsonify({})
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify({})
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+    trailDownVoteRulesTrx.delete(voter_to_follow, name)
+    rule = trailDownVoteRulesTrx.get(voter_to_follow, name)
+    return jsonify(rule)
+
 @app.route('/api/edit_vote_rule', methods=['GET', 'POST'])
 def api_edit_vote_rule():
     if request.method == 'POST':
@@ -1017,6 +1233,80 @@ def api_trail_vote_rules():
         sorted_rules = rules   
 
     return jsonify(sorted_rules)
+
+@app.route('/api/edit_trail_downvote_rule', methods=['GET', 'POST'])
+def api_edit_trail_downvote_rule():
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args    
+    access_token = json_data.get('access_token', None)
+    voter_to_follow = json_data.get("voter_to_follow", None)
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+
+    try:
+        rule = trailVoteRulesTrx.get(voter_to_follow, name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+        rule = trailDownVoteRulesTrx.get(voter_to_follow, name)
+ 
+    change_detected = False
+    for key in rule:
+        if key in ["voter_to_follow"]:
+            continue
+        value = json_data.get(key, None)
+        if value == None:
+            continue
+        change_detected = True
+        rule[key] = value
+    if change_detected:
+        trailDownVoteRulesTrx.update(rule)
+        rule = trailDownVoteRulesTrx.get(voter_to_follow, name)
+        
+    return jsonify(rule)
+
+@app.route('/api/trail_downvote_rules', methods=['GET', 'POST'])
+def api_trail_downvote_rules():
+    if request.method == 'POST':
+        json_data = request.get_json()
+    else:
+        json_data = request.args        
+    access_token = json_data.get('access_token', None)
+    sort = json_data.get('sort', 'timestamp')
+    reverse = (json_data.get('direction', 'desc') == 'desc')
+    if access_token is None:
+        return jsonify([])
+    try:
+        steemconnect.set_access_token(access_token)
+        name = steemconnect.me()["name"]
+    except:
+        return jsonify([])
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+
+    try:
+        rules = trailDownVoteRulesTrx.get_rules_by_account(name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+        rules = trailDownVoteRulesTrx.get_rules_by_account(name)
+ 
+    try:
+        sorted_rules = sorted(rules, key=lambda x: x[sort] or 0, reverse=reverse)
+    except:
+        sorted_rules = rules   
+
+    return jsonify(sorted_rules)
+
 
 @app.route('/api/failed_vote_log', methods=['GET', 'POST'])
 def api_failed_vote_log():
@@ -1312,6 +1602,7 @@ def settings():
             form.sliding_time_window.data = setting["sliding_time_window"]
             form.optimize_vote_delay_slope.data = setting["optimize_vote_delay_slope"]
             form.pause_votes_below_vp.data = setting["pause_votes_below_vp"]
+            form.pause_down_votes_below_down_vp.data = setting["pause_down_votes_below_down_vp"]
         return render_template('settings.html', form=form, user=name)
 
 
@@ -1339,6 +1630,31 @@ def new_trail_rule():
         return redirect('/show_trail_rules')
 
     return render_template('new_trail_rule.html', form=form, user=name)
+
+@app.route('/new_trail_downvote_rule', methods=['GET', 'POST'])
+@login
+def new_trail_downvote_rule():
+    """
+    Add a new rule
+    """
+    name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+    form = TrailDownVoteRuleForm(request.form)
+
+    if request.method == 'POST': # and form.validate():
+        # save the rule
+        rule_dict = trail_downvote_rule_dict_from_form(name, form)
+        try:
+            trailDownVoteRulesTrx.add(rule_dict)
+        except:
+            db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+            trailDownVoteRulesTrx = TrailVoteRulesTrx(db)
+            trailDownVoteRulesTrx.add(rule_dict)        
+        flash('Trail Downvote Rule created successfully!')
+        return redirect('/show_trail_downvote_rules')
+
+    return render_template('new_trail_downvote_rule.html', form=form, user=name)
 
 
 @app.route('/@<author>', methods=['GET', 'POST'])
@@ -1521,6 +1837,63 @@ def delete_trail_rule():
             form = set_form_trail_votes(form, rule)
         return render_template('delete_trail_rule.html', form=form, user=name)
 
+@app.route('/edit_trail_downvote_rule', methods=['GET', 'POST'])
+@login
+def edit_trail_downvote_rule():
+    name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)    
+    voter_to_follow = request.args.get("voter_to_follow", None)
+    copy_rule = request.args.get("copy_rule", None)
+    if voter_to_follow is None:
+        return redirect('/show_vote_log')
+    if copy_rule is None or not copy_rule:
+        helptext = "Editing voter_to_follow will delete the original rule and create a new rule with the new voter_to_follow."
+    else:
+        helptext = "Editing voter_to_follow will keep the original rule and create a new rule with the new voter_to_follow."
+    
+    try:
+        rule = trailDownVoteRulesTrx.get(voter_to_follow, name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        trailDownVoteRulesTrx = TrailVoteRulesTrx(db)    
+        rule = trailDownVoteRulesTrx.get(voter_to_follow, name)
+    if rule:
+        form = TrailDownVoteRuleForm(formdata=request.form)
+        if request.method == 'POST': # and form.validate():
+            rule_dict = trail_downvote_rule_dict_from_form(name, form)
+            if rule_dict["voter_to_follow"] != voter_to_follow:
+                if copy_rule is None or not copy_rule:
+                    trailDownVoteRulesTrx.delete(voter_to_follow, name)
+                trailDownVoteRulesTrx.add(rule_dict)
+            else:            
+                trailDownVoteRulesTrx.update(rule_dict)
+            return redirect('/show_trail_downvote_rules')
+        else:
+            form = set_form_trail_downvotes(form, rule)
+        return render_template('edit_trail_downvote_rule.html', form=form, helptext=helptext, user=name)
+
+@app.route('/delete_trail_downvote_rule', methods=['GET', 'POST'])
+@login
+def delete_trail_downvote_rule():
+    name = steemconnect.me()["name"]
+    db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+    trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)    
+    voter_to_follow = request.args.get("voter_to_follow", None)
+    try:
+        rule = trailDownVoteRulesTrx.get(voter_to_follow, name)
+    except:
+        db = dataset.connect(databaseConnector, engine_kwargs={'pool_recycle': 3600})
+        trailDownVoteRulesTrx = TrailDownVoteRulesTrx(db)
+        rule = trailDownVoteRulesTrx.get(voter_to_follow, name)
+    if rule:
+        form = TrailDownVoteRuleForm(formdata=request.form)
+        if request.method == 'POST': # and form.validate():
+            trailDownVoteRulesTrx.delete(voter_to_follow, name)
+            return redirect('/show_trail_downvote_rules')
+        else:
+            form = set_form_trail_votes(form, rule)
+        return render_template('delete_trail_downvote_rule.html', form=form, user=name)
 
 @app.route('/delete_vote', methods=['GET', 'POST'])
 @login

@@ -1,0 +1,18 @@
+[Unit]
+Description=rewarding tracker
+After=syslog.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/git/steemrewarding
+ExecStart=/root/git/steemrewarding/rewarding_tracker.sh
+SyslogIdentifier=rewardingtracker
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
