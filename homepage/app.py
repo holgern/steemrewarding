@@ -76,6 +76,7 @@ app.secret_key = config_data["flask_secret_key"]
 CORS(app)
 
 stm = Steem()
+nodelist = NodeList()
 
 steemconnect = SteemConnect(client_id="beem.app", scope="login", get_refresh_token=False)
 
@@ -645,7 +646,7 @@ def login(func):
 @login
 def main():
     name = steemconnect.me()["name"]
-    try:        
+    try:
         acc = Account(name, steem_instance=stm)
     except:
         nodelist = NodeList()
@@ -660,10 +661,10 @@ def main():
 
 @app.route('/logout')
 def logout():
-       
+    name = ""
     if 'access_token' in session:
         session['access_token'] = None
-        name = ""
+        
 
         return render_template('please_login.html')
     

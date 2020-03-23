@@ -296,10 +296,7 @@ if __name__ == "__main__":
         while c is None and cnt < 5:
             cnt += 1
             try:
-                if False and pending_vote["max_pending_payout"] >= 0:
-                    c = Comment(pending_vote["authorperm"], use_tags_api=True, steem_instance=stm)
-                else:
-                    c = Comment(pending_vote["authorperm"], use_tags_api=False, steem_instance=stm)
+                c = Comment(pending_vote["authorperm"], use_tags_api=True, steem_instance=stm)
                 c.refresh()
             except:
                 nodelist = NodeList()

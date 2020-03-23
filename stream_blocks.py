@@ -181,11 +181,7 @@ if __name__ == "__main__":
         while c is None and cnt < 5:
             cnt += 1
             try:
-                if cnt <= 2:
-                    c = Comment(authorperm, use_tags_api=False, steem_instance=stm)
-                else:
-                    c = Comment(authorperm, use_tags_api=True, steem_instance=stm)
-                    
+                c = Comment(authorperm, use_tags_api=True, steem_instance=stm)
                 c.refresh()
             except Exception as e:
                 print(e)
@@ -214,7 +210,7 @@ if __name__ == "__main__":
                 command = body[start_index + 11:start_index + stop_index2]
             else:
                 command = body[start_index + 11:]
-            commandsTrx.add({"authorperm": authorperm, "command": command, "account": c["author"], "valid": True, "created": dt_created, "in_progress": False,
+            commandsTrx.add({"authorperm": authorperm, "command": command[:1024], "account": c["author"], "valid": True, "created": dt_created, "in_progress": False,
                              "done": False, "block": ops["block_num"]})
                 
         already_voted = False
@@ -244,7 +240,9 @@ if __name__ == "__main__":
             tags = ""
             if "tags" in c and c["tags"] is not None:
                 for t in c["tags"]:
-                    if t is not None and len(tags) == 0:
+                    if not isinstance(t, str):
+                        continue
+                    if t is not None and len(tags) == 0 and isinstance(t, str):
                         tags = t
                     elif t is not None and len(tags) > 0:
                         tags += "," + t

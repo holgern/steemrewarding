@@ -105,7 +105,7 @@ if __name__ == "__main__":
         if vote_sbd is not None and vote_sbd > 0:
             vote_weight = 0
         
-        c_comment = Comment(command["authorperm"], use_tags_api=False, steem_instance=stm)
+        c_comment = Comment(command["authorperm"], use_tags_api=True, steem_instance=stm)
         voter = c_comment["author"]
         
         voter_acc = Account(voter, steem_instance=stm)

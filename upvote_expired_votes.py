@@ -400,7 +400,8 @@ if __name__ == "__main__":
             if comment_written:
                 continue
             # print(vote)
-            
+            if len(settings["upvote_comment"]) == 0:
+                continue
             voter_acc = Account(vote["voter"], steem_instance=stm)
             print("RC: %f" % (voter_acc.get_rc_manabar()["current_mana"] / 1e9))
             if voter_acc.get_rc_manabar()["current_mana"] / 1e9 < 1.6:
@@ -418,6 +419,8 @@ if __name__ == "__main__":
                 json_metadata = {'app': 'rewarding/%s' % (rewarding_version)}
                 reply_body = settings["upvote_comment"]
                 reply_body = reply_body.replace("{{name}}", "@%s" % c["author"] ).replace("{{voter}}", "@%s" % vote["voter"])
+                if len(reply_body) == 0:
+                    continue
                 c.reply(reply_body, author=vote["voter"], meta=json_metadata)
                 print("Broadcasted comment for %s " % vote["authorperm"])
                 comment_written = True

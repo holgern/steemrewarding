@@ -69,6 +69,7 @@ if __name__ == "__main__":
     node_list = nodes.get_nodes(exclude_limited=True)
 
     stm = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast) 
+    stm2 = Steem(node=node_list, num_retries=5, call_num_retries=3, timeout=15, nobroadcast=nobroadcast, use_condenser=True) 
     b = Blockchain(steem_instance = stm)
     updated_vote_log = []
     voteLogTrx.delete_old_logs(14)
@@ -156,7 +157,7 @@ if __name__ == "__main__":
                 rshares_before = 0
                 rshares_after = 0
                 try:
-                    activeVotes = ActiveVotes(authorperm, steem_instance=stm).get_sorted_list()
+                    activeVotes = ActiveVotes(authorperm, steem_instance=stm2).get_sorted_list()
                 except:
                     continue
                 total_rshares_sum = 0

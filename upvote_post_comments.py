@@ -174,10 +174,7 @@ if __name__ == "__main__":
             continue
         
         try:
-            if pending_vote["max_pending_payout"] >= 0:
-                c = Comment(pending_vote["authorperm"], use_tags_api=True, steem_instance=stm)
-            else:
-                c = Comment(pending_vote["authorperm"], use_tags_api=False, steem_instance=stm)            
+            c = Comment(pending_vote["authorperm"], use_tags_api=True, steem_instance=stm)
         except:
             failedVoteLogTrx.add({"authorperm": pending_vote["authorperm"], "voter": pending_vote["voter"], "error": "Could not process %s" % (pending_vote["authorperm"]),
                                   "timestamp": datetime.utcnow(), "vote_weight": pending_vote["vote_weight"], "vote_delay_min": pending_vote["vote_delay_min"],
