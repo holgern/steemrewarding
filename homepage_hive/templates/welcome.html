@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+              <div class="col-lg-8">
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title text-center">Welcome {{ user }} </h3>
+                    </div>
+                                    <div>
+                <ul>
+                <li> vote power: {{ votepower }} - full in: {{ recharged }}</li>
+                <li> posting authority for rewarding: {{ post_auth }}</li>
+                </ul>
+                </div>
+                    
+                  In order to use steemrewarding, you need to give @rewarding the posting authority by <a href="https://steemconnect.com/authorize/@rewarding">https://steemconnect.com/authorize/@rewarding</a>.
+                  You can check, if you did here: <a href="https://steemd.com/@{{user}}">https://steemd.com/@{{user}}</a>
+                </div>
+                <div class="card">
+                    <h4> Commands</h4>
+    <p>
+    The command has to be written in a comment and the delayed upvote is casted to the direct parent. When no time is given, upvote is done 15 minutes after post/comment creation (time is in relation to the parent post/comment creation date).
+    </p>
+    <ul>
+    <li>$rewarding 77% 13min</li>
+    <li>$rewarding 88 %</li>
+    </ul>
+    <p>
+    When doing this on a paid-out post, rewarding creates a comment with 100% beneficiaries set to the author and upvotes this with the given percentage and delay.
+    </p>
+                </div>
+                <div class="card">
+                <ul>
+                <li> Delayed Vote: Triggers a delayed vote without a voting rule</li>
+                <li> Show rules: Show all stored rules</li>
+                <li> Add a new rule: Creates a new rule for an author.</li>
+                <li> Show vote log: Shows all casted votes within the last 7 days</li>
+                <li> Show pending votes: Show not yet casted votes</li>
+                <li> User settings: Text for an upvote comment can be set </li>
+                <li> Logout: remove steemconnect token from session storage </li>
+                </ul>
+                
+                </div>
+                <div class="card">
+                steemrewarding version: {{rewardingversion}}
+                <br>
+                <a href="https://github.com/holgern/steemrewarding"> github </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+{% endblock %}

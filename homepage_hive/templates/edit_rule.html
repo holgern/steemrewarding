@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+
+                    <h3 class="card-title text-center">Edit vote rule for {{ user }} </h3>
+                    <div>
+                    {{ helptext }}
+                    </div>
+                  <div class="table-responsive">
+
+{% from "_formhelpers.html" import render_field %}
+<form method=post>
+    <dl>
+        {{ render_field(form.author) }}
+        {{ render_field(form.main_post) }}
+        {{ render_field(form.vote_weight) }}
+        {{ render_field(form.vote_delay_min) }}
+        {{ render_field(form.maximum_vote_delay_min) }}
+
+        
+        {{ render_field(form.enabled) }}
+        {{ render_field(form.vote_sbd) }}
+        
+        {{ render_field(form.max_votes_per_day) }}
+        {{ render_field(form.max_votes_per_week) }}
+        
+        {{ render_field(form.min_vp) }}
+        {{ render_field(form.vp_scaler) }}
+        
+
+        {{ render_field(form.vote_when_vp_reached) }}
+        {{ render_field(form.vp_reached_order) }}
+
+        
+        {{ render_field(form.include_tags) }}
+        {{ render_field(form.exclude_tags) }}
+        
+        {{ render_field(form.minimum_word_count) }}
+        {{ render_field(form.include_apps) }}
+        {{ render_field(form.exclude_apps) }}
+        {{ render_field(form.exclude_declined_payout) }}
+        
+        {{ render_field(form.max_net_votes) }}
+        {{ render_field(form.max_pending_payout) }}
+        {{ render_field(form.include_text) }}
+        {{ render_field(form.exclude_text) }}
+        
+        {{ render_field(form.leave_comment) }}
+        {{ render_field(form.disable_optimization) }}
+        {{ render_field(form.note) }}
+    </dl>
+    <p><input type=submit value=Submit>
+</form>
+
+            </div>
+          </div>
+          </div>
+{% endblock %}

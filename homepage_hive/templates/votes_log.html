@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+              <div class="col-lg order-lg-first">
+                <ul class="nav nav-tabs border-0 flex-column flex-lg-row">
+                   <li class="nav-item">
+                    <a href="/show_vote_log" class="nav-link active"></i> Votes log</a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/show_failed_vote_log"></i> Failed votes log</a>
+                  </li>
+                </ul>
+              </div>
+ 
+
+                    <h3 class="card-title text-center">Vote log for {{ user }} </h3>
+                  <div class="table-responsive">
+ 
+{{ table }}
+
+            </div>
+          </div>
+          </div>
+
+
+{% endblock %}

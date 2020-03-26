@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+
+                    <h3 class="card-title text-center">One time delayed vote for {{ user }} (works also for paid-out posts by creating a comment with beneficiaries)</h3>
+                  <div class="table-responsive">
+ 
+{% from "_formhelpers.html" import render_field %}
+<form method=post>
+    <dl>
+        {{ render_field(form.authorperm) }}
+        {{ render_field(form.vote_delay_min) }}
+        {{ render_field(form.vote_weight) }}
+        {{ render_field(form.vote_sbd) }}
+        {{ render_field(form.min_vp) }}
+        
+                            <dt>{{ form.vote_when_vp_reached.label }}
+    <dd>{{ form.vote_when_vp_reached(checked=form.vote_when_vp_reached)|safe }}
+    </dd>
+        
+        {{ render_field(form.vp_reached_order) }}
+    </dl>
+    <p><input type=submit value=Submit>
+</form>
+
+            </div>
+          </div>
+          </div>
+
+
+{% endblock %}

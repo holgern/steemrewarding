@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+
+                    <h3 class="card-title text-center">Settings for {{ user }} </h3>
+                  <div class="table-responsive">
+ 
+{% from "_formhelpers.html" import render_field %}
+<form method=post>
+    <dl>
+        {{ render_field(form.upvote_comment) }}
+        {{ render_field(form.optimize_vote_delay) }}
+        {{ render_field(form.minimum_vote_delay) }}
+        {{ render_field(form.maximum_vote_delay) }}
+        {{ render_field(form.optimize_vote_delay_slope) }}
+        {{ render_field(form.optimize_threshold) }}
+        {{ render_field(form.optimize_ma_length) }}
+        {{ render_field(form.rshares_divider) }}
+        {{ render_field(form.frontend) }}
+        {{ render_field(form.sliding_time_window) }}
+        {{ render_field(form.pause_votes_below_vp) }}
+        {{ render_field(form.pause_down_votes_below_down_vp) }}
+        
+
+    </dl>
+    <p><input type=submit value=Submit>
+</form>
+
+            </div>
+          </div>
+          </div>
+
+
+{% endblock %}

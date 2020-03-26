@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+ 
+               <div class="col-lg order-lg-first">
+                <ul class="nav nav-tabs border-0 flex-column flex-lg-row">
+                   <li class="nav-item">
+                    <a href="/new_rule"></i> New vote rule</a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/new_trail_rule" class="nav-link active"></i> New trail vote rule</a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/new_trail_downvote_rule"></i> New trail downvote rule</a>
+                  </li>
+                </ul>
+              </div>
+              
+                    <h3 class="card-title text-center">Add new trail vote rule for {{ user }} </h3>
+                  <div class="table-responsive">
+ 
+{% from "_formhelpers.html" import render_field %}
+<form method=post>
+    <dl>
+        {{ render_field(form.voter_to_follow) }}
+        
+            <dt>{{ form.only_main_post.label }}
+    <dd>{{ form.only_main_post(checked=form.only_main_post)|safe }}
+    </dd>
+        {{ render_field(form.vote_weight_treshold) }}
+        {{ render_field(form.vote_weight_scaler) }}
+        {{ render_field(form.vote_weight_offset) }}
+        {{ render_field(form.minimum_vote_delay_min) }}
+        {{ render_field(form.maximum_vote_delay_min) }}
+        
+                <dt>{{ form.enabled.label }}
+    <dd>{{ form.enabled(checked=form.enabled)|safe }}
+    </dd>
+        
+        {{ render_field(form.max_votes_per_day) }}
+        {{ render_field(form.max_votes_per_week) }}
+
+        {{ render_field(form.min_vp) }}
+        {{ render_field(form.vp_scaler) }}
+
+        {{ render_field(form.vote_when_vp_reached) }}
+        {{ render_field(form.vp_reached_order) }}
+        
+        {{ render_field(form.exclude_authors_with_vote_rule) }}
+
+        {{ render_field(form.include_authors) }}
+        {{ render_field(form.exclude_authors) }}
+        {{ render_field(form.include_tags) }}
+        {{ render_field(form.exclude_tags) }} 
+
+
+        <dt>{{ form.exclude_declined_payout.label }}
+    <dd>{{ form.exclude_declined_payout(checked=form.exclude_declined_payout)|safe }}
+    </dd>
+        {{ render_field(form.max_net_votes) }}
+        {{ render_field(form.max_pending_payout) }}
+        {{ render_field(form.note) }}
+    </dl>
+    <p><input type=submit value=Submit>
+</form>
+
+            </div>
+          </div>
+          </div>
+
+
+{% endblock %}

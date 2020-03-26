@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+        <div class="my-3 my-md-5">
+          <div class="container">
+ 
+                    <h3 class="card-title text-center">Delete trail vote rule for {{ user }} </h3>
+                    <div>
+                    Submit will delete the shown rule! Changing parameter will not change the rule.
+                    </div>
+                  <div class="table-responsive">
+{% from "_formhelpers.html" import render_field %}
+<form method=post>
+    <dl>
+        {{ render_field(form.voter_to_follow) }}
+        {{ render_field(form.enabled) }}
+        {{ render_field(form.only_main_post) }}
+        {{ render_field(form.vote_weight_treshold) }}
+        {{ render_field(form.vote_weight_scaler) }}
+        {{ render_field(form.vote_weight_offset) }}
+        {{ render_field(form.vote_when_vp_reached) }}
+
+
+    </dl>
+    <p><input type=submit value=Submit>
+</form>
+
+            </div>
+          </div>
+          </div>
+{% endblock %}
+

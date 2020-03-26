@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+        <div class="my-3 my-md-5">
+              <div class="col-lg order-lg-first">
+                <ul class="nav nav-tabs border-0 flex-column flex-lg-row">
+                   <li class="nav-item">
+                    <a href="/show_rules" class="nav-link active"></i> Votes rules</a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/show_trail_rules"></i> Trail votes rules</a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/show_trail_downvote_rules"></i> Trail downvotes rules</a>
+                  </li>
+                </ul>
+              </div>
+ 
+
+                    <h3 class="card-title text-center">Vote rules for {{ user }} </h3>
+                  <div class="table-responsive">
+ 
+{{ table }}
+
+            </div>
+          </div>
+
+{% endblock %}
