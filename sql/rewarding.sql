@@ -139,7 +139,7 @@ CREATE TABLE "public"."trail_vote_rules" (
     "voter_to_follow" character varying(16) NOT NULL,
     "account" character varying(16) NOT NULL,
     "only_main_post" boolean DEFAULT true NOT NULL,
-    "vote_weight_treshold" real DEFAULT '0' NOT NULL,
+    "vote_weight_threshold" real DEFAULT '0' NOT NULL,
     "include_authors" character varying(1024) DEFAULT '' NOT NULL,
     "exclude_authors" character varying(1024) DEFAULT '' NOT NULL,
     "min_vp" real DEFAULT '90' NOT NULL,

@@ -175,7 +175,7 @@ class TrailResults(Table):
     only_main_post = BoolCol('only main post', allow_sort = False)
     enabled = BoolCol('enabled', allow_sort = False)
 
-    vote_weight_treshold = Col('vote weight treshold')
+    vote_weight_threshold = Col('vote weight threshold')
     vote_weight_scaler = Col('vote weight scaler [%]')
     vote_weight_offset = Col('vote weight offset [%]')
     
@@ -223,7 +223,7 @@ class TrailDownVoteResults(Table):
     only_main_post = BoolCol('only main post', allow_sort = False)
     enabled = BoolCol('enabled', allow_sort = False)
 
-    vote_weight_treshold = Col('downvote weight treshold')
+    vote_weight_threshold = Col('downvote weight threshold')
     vote_weight_scaler = Col('downvote weight scaler [%]')
     vote_weight_offset = Col('downvote weight offset [%]')
     
@@ -362,7 +362,7 @@ class TrailRuleForm(FlaskForm):
     voter_to_follow = StringField('vote to follow (must not be empty!)')
     # account = StringField("StringField")
     only_main_post = BooleanField('only_main_post (When True, only posts will be upvoted)', default=True)
-    vote_weight_treshold = FloatField('vote_weight_treshold - skip votes with lower weight', default=0.0)
+    vote_weight_threshold = FloatField('vote_weight_threshold - skip votes with lower weight', default=0.0)
     
     vote_weight_scaler = FloatField('vote_weight_scaler [%] - scales the vote weight (e.g. 50% will halve the weight, 200% will double it)', default=50.0)
     vote_weight_offset = FloatField('vote_weight_offset [%] - the offset is added to the weight after scaling the vote', default=0.0)
@@ -400,7 +400,7 @@ class TrailDownVoteRuleForm(FlaskForm):
     voter_to_follow = StringField('vote to follow (must not be empty!)')
     # account = StringField("StringField")
     only_main_post = BooleanField('only_main_post (When True, only posts will be upvoted)', default=True)
-    vote_weight_treshold = FloatField('vote_weight_treshold - skip downvotes with lower weight', default=0.0)
+    vote_weight_threshold = FloatField('vote_weight_threshold - skip downvotes with lower weight', default=0.0)
     
     vote_weight_scaler = FloatField('vote_weight_scaler [%] - scales the downvote weight (e.g. 50% will halve the weight, 200% will double it)', default=50.0)
     vote_weight_offset = FloatField('vote_weight_offset [%] - the offset is added to the weight after scaling the vote', default=0.0)
@@ -486,7 +486,7 @@ def set_form(form, rule):
 def set_form_trail_votes(form, rule):
     form.voter_to_follow.data = rule["voter_to_follow"]
     form.only_main_post.data = rule["only_main_post"]
-    form.vote_weight_treshold.data = rule["vote_weight_treshold"]
+    form.vote_weight_threshold.data = rule["vote_weight_threshold"]
     form.include_authors.data = rule["include_authors"]
     form.exclude_authors.data = rule["exclude_authors"]
     form.min_vp.data = rule["min_vp"]
@@ -512,7 +512,7 @@ def set_form_trail_votes(form, rule):
 def set_form_trail_downvotes(form, rule):
     form.voter_to_follow.data = rule["voter_to_follow"]
     form.only_main_post.data = rule["only_main_post"]
-    form.vote_weight_treshold.data = rule["vote_weight_treshold"]
+    form.vote_weight_threshold.data = rule["vote_weight_threshold"]
     form.include_authors.data = rule["include_authors"]
     form.exclude_authors.data = rule["exclude_authors"]
     form.min_vp.data = rule["min_vp"]
@@ -562,7 +562,7 @@ def trail_rule_dict_from_form(account, form):
     """
 
     rule = {"account": account, "voter_to_follow": form.voter_to_follow.data, "only_main_post": form.only_main_post.data,
-            "vote_weight_treshold": form.vote_weight_treshold.data, "include_authors": form.include_authors.data,
+            "vote_weight_threshold": form.vote_weight_threshold.data, "include_authors": form.include_authors.data,
             "exclude_authors": form.exclude_authors.data, "min_vp": form.min_vp.data,
             "vote_when_vp_reached": form.vote_when_vp_reached.data, "vp_reached_order": form.vp_reached_order.data,
             "vote_weight_scaler": form.vote_weight_scaler.data, "vote_weight_offset": form.vote_weight_offset.data, "max_votes_per_day": form.max_votes_per_day.data,
@@ -580,7 +580,7 @@ def trail_downvote_rule_dict_from_form(account, form):
     """
 
     rule = {"account": account, "voter_to_follow": form.voter_to_follow.data, "only_main_post": form.only_main_post.data,
-            "vote_weight_treshold": form.vote_weight_treshold.data, "include_authors": form.include_authors.data,
+            "vote_weight_threshold": form.vote_weight_threshold.data, "include_authors": form.include_authors.data,
             "exclude_authors": form.exclude_authors.data, "min_vp": form.min_vp.data,
             "vote_when_vp_reached": form.vote_when_vp_reached.data, "vp_reached_order": form.vp_reached_order.data,
             "vote_weight_scaler": form.vote_weight_scaler.data, "vote_weight_offset": form.vote_weight_offset.data, "max_votes_per_day": form.max_votes_per_day.data,
@@ -893,7 +893,7 @@ def api_new_trail_vote_rule():
     for key in json_data:
         if key in ["voter_to_follow", "account"]:
             continue
-        if key not in ["only_main_post", "vote_weight_treshold", "include_authors", "exclude_authors", "min_vp", "vote_weight_scaler", "vote_weight_offset", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "exclude_declined_payout", "minimum_vote_delay_min", "maximum_vote_delay_min", "enabled", "max_net_votes", "max_pending_payout", "vp_scaler", "scale_weight_to_voter_vp_diff", "vote_when_vp_reached", "vp_reached_order", "vote_sbd", "exclude_authors_with_vote_rule", "note", "vote_delay_scaler"]:
+        if key not in ["only_main_post", "vote_weight_threshold", "include_authors", "exclude_authors", "min_vp", "vote_weight_scaler", "vote_weight_offset", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "exclude_declined_payout", "minimum_vote_delay_min", "maximum_vote_delay_min", "enabled", "max_net_votes", "max_pending_payout", "vp_scaler", "scale_weight_to_voter_vp_diff", "vote_when_vp_reached", "vp_reached_order", "vote_sbd", "exclude_authors_with_vote_rule", "note", "vote_delay_scaler"]:
             continue
         value = json_data.get(key, None)
         if value == None:
@@ -927,7 +927,7 @@ def api_new_trail_downvote_rule():
     for key in json_data:
         if key in ["voter_to_follow", "account"]:
             continue
-        if key not in ["only_main_post", "vote_weight_treshold", "include_authors", "exclude_authors", "min_vp", "vote_weight_scaler", "vote_weight_offset", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "exclude_declined_payout", "minimum_vote_delay_min", "maximum_vote_delay_min", "enabled", "max_net_votes", "max_pending_payout", "vp_scaler", "scale_weight_to_voter_vp_diff", "vote_when_vp_reached", "vp_reached_order", "vote_sbd", "exclude_authors_with_vote_rule", "note", "vote_delay_scaler"]:
+        if key not in ["only_main_post", "vote_weight_threshold", "include_authors", "exclude_authors", "min_vp", "vote_weight_scaler", "vote_weight_offset", "max_votes_per_day", "max_votes_per_week", "include_tags", "exclude_tags", "exclude_declined_payout", "minimum_vote_delay_min", "maximum_vote_delay_min", "enabled", "max_net_votes", "max_pending_payout", "vp_scaler", "scale_weight_to_voter_vp_diff", "vote_when_vp_reached", "vp_reached_order", "vote_sbd", "exclude_authors_with_vote_rule", "note", "vote_delay_scaler"]:
             continue
         value = json_data.get(key, None)
         if value == None:
